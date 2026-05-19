@@ -6,6 +6,7 @@ import 'package:miruvor/core/models/tasting_note.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
+import 'package:miruvor/features/shared/presentation/date_picker_field.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class TastingNotesPage extends StatelessWidget {
@@ -201,6 +202,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
   final _ratingController = TextEditingController(text: '4.0');
   final _imageStore = LocalImageStore();
 
+  DateTime _tastedAt = DateTime.now();
   String? _wineId;
   String? _selectedImagePath;
   bool _isSaving = false;
@@ -213,6 +215,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
     final note = widget.initialNote;
     if (note != null) {
       _wineId = note.wineId;
+      _tastedAt = note.tastedAt;
       _selectedImagePath = note.imagePath;
       _ratingController.text = note.rating.toStringAsFixed(1);
       _pairingController.text = note.pairing ?? '';
@@ -291,6 +294,14 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
                   validator: _ratingValidator,
                 ),
                 const SizedBox(height: 12),
+                DatePickerField(
+                  label: '시음일',
+                  value: _tastedAt,
+                  onChanged: (date) {
+                    setState(() => _tastedAt = date);
+                  },
+                ),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _pairingController,
                   decoration: const InputDecoration(labelText: '페어링 음식'),
@@ -347,7 +358,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
           id: widget.initialNote!.id,
           wineId: widget.initialNote!.wineId,
           bottleId: widget.initialNote!.bottleId,
-          tastedAt: widget.initialNote!.tastedAt,
+          tastedAt: _tastedAt,
           rating: double.parse(_ratingController.text.trim()),
           pairing: _nullableText(_pairingController),
           aroma: _nullableText(_aromaController),
@@ -358,7 +369,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
       } else {
         await store.addTastingNote(
           wineId: _wineId!,
-          tastedAt: DateTime.now(),
+          tastedAt: _tastedAt,
           rating: double.parse(_ratingController.text.trim()),
           pairing: _nullableText(_pairingController),
           aroma: _nullableText(_aromaController),

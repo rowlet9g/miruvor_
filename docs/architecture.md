@@ -97,6 +97,10 @@ Store source-specific fields inside adapter DTOs or metadata tables.
 8. Price alerts
 9. External API adapters
 
+Purchase and tasting dates are user-selected in the form layer and persisted as
+`DateTime` values in SQLite. The UI intentionally formats them through the
+shared formatter so later locale changes stay centralized.
+
 The first search/filter pass is intentionally app-side filtering over live Drift
 streams. This keeps the UI behavior simple while the local dataset is small. If
 the cellar grows large, move the same `WineFilter` contract into SQL-backed

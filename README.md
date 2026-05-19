@@ -10,6 +10,7 @@ Personal wine-log mobile application built with Flutter.
 - Attach photos from the camera or photo library and store them under the app's
   local documents directory.
 - Compare purchase price against a reference price entered manually at first.
+- Pick purchase and tasting dates instead of relying on the current day.
 - Search and filter the local wine collection by name, producer, country, type,
   and price range.
 - Reuse the same local filter controls in cellar and wine search views.
@@ -43,5 +44,5 @@ lib/
 2. Run `flutter create .` in this directory to generate platform folders.
 3. Run `flutter pub get`.
 4. Add richer bottle state controls for open, consumed, gifted, or returned.
-5. Add date pickers for purchase and tasting dates.
+5. Add explicit price observation history management.
 6. Add price-source adapters only for allowed APIs or user-entered references.

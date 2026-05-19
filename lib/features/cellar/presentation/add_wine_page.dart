@@ -5,6 +5,7 @@ import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
+import 'package:miruvor/features/shared/presentation/date_picker_field.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class AddWinePage extends StatefulWidget {
@@ -38,6 +39,7 @@ class _AddWinePageState extends State<AddWinePage> {
   final _imageStore = LocalImageStore();
 
   WineType _type = WineType.red;
+  DateTime _purchaseDate = DateTime.now();
   String? _selectedImagePath;
   bool _isConsumed = false;
   bool _isSaving = false;
@@ -64,6 +66,7 @@ class _AddWinePageState extends State<AddWinePage> {
       _purchasePriceController.text = bottle.purchasePrice.toString();
       _referencePriceController.text = referencePrice?.price.toString() ?? '';
       _type = wine.type;
+      _purchaseDate = bottle.purchaseDate;
       _selectedImagePath = bottle.imagePath;
       _isConsumed = bottle.isConsumed;
     }
@@ -166,6 +169,14 @@ class _AddWinePageState extends State<AddWinePage> {
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
+            DatePickerField(
+              label: '구매일',
+              value: _purchaseDate,
+              onChanged: (date) {
+                setState(() => _purchaseDate = date);
+              },
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _purchasePriceController,
               decoration: const InputDecoration(labelText: '구매 가격'),
@@ -228,7 +239,7 @@ class _AddWinePageState extends State<AddWinePage> {
         await store.updateWinePurchase(
           wineId: widget.initialWine!.id,
           bottleId: widget.initialBottle!.id,
-          purchaseDate: widget.initialBottle!.purchaseDate,
+          purchaseDate: _purchaseDate,
           name: _nameController.text.trim(),
           producer: _producerController.text.trim(),
           country: _countryController.text.trim(),
@@ -254,7 +265,7 @@ class _AddWinePageState extends State<AddWinePage> {
           grapeVarieties: grapeVarieties,
           shopName: _nullableText(_shopNameController),
           storageLocation: _nullableText(_storageLocationController),
-          purchaseDate: DateTime.now(),
+          purchaseDate: _purchaseDate,
           purchasePrice: _requiredParsedInt(_purchasePriceController),
           referencePrice: referencePrice,
           imagePath: storedImagePath,

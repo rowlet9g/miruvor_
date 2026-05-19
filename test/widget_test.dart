@@ -124,6 +124,7 @@ void main() {
     await tester.pumpAndSettle();
     await _enterTextByLabel(tester, '이름', 'Edited Wine');
     await _enterTextByLabel(tester, '구매 가격', '55000');
+    await _pickDate(tester, fieldLabel: '구매일', day: '3');
     await tester.tap(find.text('수정 저장'));
     await tester.pumpAndSettle();
 
@@ -133,6 +134,8 @@ void main() {
 
     await tester.tap(find.textContaining('Edited Wine'));
     await tester.pumpAndSettle();
+    expect(find.text('2026.05.03'), findsOneWidget);
+
     await tester.tap(find.byTooltip('삭제'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, '삭제'));
@@ -172,11 +175,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await _enterTextByLabel(tester, '평점', '3.5');
+    await _pickDate(tester, fieldLabel: '시음일', day: '4');
     await _enterTextByLabel(tester, '페어링 음식', 'Steak');
     await tester.tap(find.text('수정 저장'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('3.5 / 5.0'), findsOneWidget);
+    expect(find.textContaining('2026.05.04'), findsOneWidget);
     expect(find.text('Pairing: Steak'), findsOneWidget);
 
     await tester.tap(find.byTooltip('노트 작업'));
@@ -232,6 +237,32 @@ Future<void> _enterTextField(
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.enterText(finder, value);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pickDate(
+  WidgetTester tester, {
+  required String fieldLabel,
+  required String day,
+}) async {
+  final labelFinder = find.text(fieldLabel);
+  for (var attempts = 0;
+      attempts < 8 && labelFinder.evaluate().isEmpty;
+      attempts++) {
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -260));
+    await tester.pumpAndSettle();
+  }
+  await tester.ensureVisible(labelFinder);
+  await tester.pumpAndSettle();
+  final fieldFinder = find.ancestor(
+    of: labelFinder,
+    matching: find.byType(InkWell),
+  );
+  await tester.tap(fieldFinder, warnIfMissed: false);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(day).last);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('OK'));
   await tester.pumpAndSettle();
 }
 
