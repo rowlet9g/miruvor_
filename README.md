@@ -13,6 +13,7 @@ Personal wine-log mobile application built with Flutter.
 - Search and filter the local wine collection by name, producer, country, type,
   and price range.
 - Reuse the same local filter controls in cellar and wine search views.
+- Edit and delete wine purchases and tasting notes from the app UI.
 
 External price/review integrations are intentionally outside the first build.
 They should be added through adapters after API access, terms, and data quality
@@ -41,6 +42,6 @@ lib/
 1. Install or expose Flutter SDK on `PATH`.
 2. Run `flutter create .` in this directory to generate platform folders.
 3. Run `flutter pub get`.
-4. Add edit/delete flows for wines, bottles, and tasting notes.
-5. Add explicit consumed/open bottle state controls.
+4. Add richer bottle state controls for open, consumed, gifted, or returned.
+5. Add date pickers for purchase and tasting dates.
 6. Add price-source adapters only for allowed APIs or user-entered references.

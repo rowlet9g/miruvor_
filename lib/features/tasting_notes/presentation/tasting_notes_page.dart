@@ -68,13 +68,44 @@ class _TastingNoteListCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  wine == null
-                      ? '알 수 없는 와인'
-                      : '${wine.name} ${wine.displayVintage}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        wine == null
+                            ? '알 수 없는 와인'
+                            : '${wine.name} ${wine.displayVintage}',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
+                    ),
+                    PopupMenuButton<_TastingNoteAction>(
+                      tooltip: '노트 작업',
+                      onSelected: (action) {
+                        switch (action) {
+                          case _TastingNoteAction.edit:
+                            _editNote(context);
+                          case _TastingNoteAction.delete:
+                            _deleteNote(context);
+                        }
+                      },
+                      itemBuilder: (context) {
+                        return const [
+                          PopupMenuItem(
+                            value: _TastingNoteAction.edit,
+                            child: Text('수정'),
+                          ),
+                          PopupMenuItem(
+                            value: _TastingNoteAction.delete,
+                            child: Text('삭제'),
+                          ),
+                        ];
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -112,10 +143,50 @@ class _TastingNoteListCard extends StatelessWidget {
       },
     );
   }
+
+  Future<void> _editNote(BuildContext context) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => _AddTastingNotePage(initialNote: note),
+      ),
+    );
+  }
+
+  Future<void> _deleteNote(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('테이스팅 노트 삭제'),
+          content: const Text('이 노트를 삭제합니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    await MiruvorScope.of(context).deleteTastingNote(note.id);
+  }
 }
 
+enum _TastingNoteAction { edit, delete }
+
 class _AddTastingNotePage extends StatefulWidget {
-  const _AddTastingNotePage();
+  const _AddTastingNotePage({this.initialNote});
+
+  final TastingNote? initialNote;
 
   @override
   State<_AddTastingNotePage> createState() => _AddTastingNotePageState();
@@ -133,6 +204,23 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
   String? _wineId;
   String? _selectedImagePath;
   bool _isSaving = false;
+  bool get _isEditing => widget.initialNote != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final note = widget.initialNote;
+    if (note != null) {
+      _wineId = note.wineId;
+      _selectedImagePath = note.imagePath;
+      _ratingController.text = note.rating.toStringAsFixed(1);
+      _pairingController.text = note.pairing ?? '';
+      _aromaController.text = note.aroma ?? '';
+      _palateController.text = note.palate ?? '';
+      _memoController.text = note.memo ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -149,11 +237,19 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
     final store = MiruvorScope.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Tasting Note')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Tasting Note' : 'Add Tasting Note'),
+      ),
       body: StreamBuilder<List<Wine>>(
         stream: store.watchWines(),
         builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           final wines = snapshot.data ?? const <Wine>[];
+          final selectedWineId =
+              wines.any((wine) => wine.id == _wineId) ? _wineId : null;
 
           return Form(
             key: _formKey,
@@ -169,7 +265,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _wineId,
+                  initialValue: selectedWineId,
                   decoration: const InputDecoration(labelText: '와인'),
                   items: wines.map((wine) {
                     return DropdownMenuItem(
@@ -177,7 +273,9 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
                       child: Text('${wine.name} ${wine.displayVintage}'),
                     );
                   }).toList(),
-                  onChanged: (value) => setState(() => _wineId = value),
+                  onChanged: _isEditing
+                      ? null
+                      : (value) => setState(() => _wineId = value),
                   validator: (value) {
                     if (value == null) {
                       return '와인을 선택해 주세요.';
@@ -223,7 +321,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save_outlined),
-                  label: const Text('저장'),
+                  label: Text(_isEditing ? '수정 저장' : '저장'),
                   onPressed: _isSaving ? null : _save,
                 ),
               ],
@@ -243,23 +341,32 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
     final store = MiruvorScope.of(context);
 
     try {
-      final storedImagePath = _selectedImagePath == null
-          ? null
-          : await _imageStore.copyIntoAppStorage(
-              _selectedImagePath!,
-              prefix: 'tasting-note',
-            );
-
-      await store.addTastingNote(
-        wineId: _wineId!,
-        tastedAt: DateTime.now(),
-        rating: double.parse(_ratingController.text.trim()),
-        pairing: _nullableText(_pairingController),
-        aroma: _nullableText(_aromaController),
-        palate: _nullableText(_palateController),
-        memo: _nullableText(_memoController),
-        imagePath: storedImagePath,
-      );
+      final storedImagePath = await _storedImagePath();
+      if (_isEditing) {
+        await store.updateTastingNote(
+          id: widget.initialNote!.id,
+          wineId: widget.initialNote!.wineId,
+          bottleId: widget.initialNote!.bottleId,
+          tastedAt: widget.initialNote!.tastedAt,
+          rating: double.parse(_ratingController.text.trim()),
+          pairing: _nullableText(_pairingController),
+          aroma: _nullableText(_aromaController),
+          palate: _nullableText(_palateController),
+          memo: _nullableText(_memoController),
+          imagePath: storedImagePath,
+        );
+      } else {
+        await store.addTastingNote(
+          wineId: _wineId!,
+          tastedAt: DateTime.now(),
+          rating: double.parse(_ratingController.text.trim()),
+          pairing: _nullableText(_pairingController),
+          aroma: _nullableText(_aromaController),
+          palate: _nullableText(_palateController),
+          memo: _nullableText(_memoController),
+          imagePath: storedImagePath,
+        );
+      }
     } catch (_) {
       if (!mounted) {
         return;
@@ -277,6 +384,20 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
     }
 
     Navigator.of(context).pop();
+  }
+
+  Future<String?> _storedImagePath() async {
+    if (_selectedImagePath == null) {
+      return null;
+    }
+    if (_selectedImagePath == widget.initialNote?.imagePath) {
+      return _selectedImagePath;
+    }
+
+    return _imageStore.copyIntoAppStorage(
+      _selectedImagePath!,
+      prefix: 'tasting-note',
+    );
   }
 
   String? _ratingValidator(String? value) {

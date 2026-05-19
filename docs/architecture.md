@@ -39,6 +39,10 @@ Images are copied into the app documents directory before their paths are saved.
 Database rows should not point at picker cache files because those files may be
 removed by the platform.
 
+Deleting the current 1:1 wine purchase record removes its bottle, manual price
+observations, and tasting notes. This is intentionally conservative until the
+app supports multiple bottles pointing at the same canonical wine.
+
 ### TastingNote
 
 User's own drinking record.

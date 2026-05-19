@@ -104,6 +104,71 @@ class MiruvorStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateWinePurchase({
+    required String wineId,
+    required String bottleId,
+    required DateTime purchaseDate,
+    required String name,
+    required String producer,
+    required String country,
+    required WineType type,
+    required int purchasePrice,
+    String? region,
+    int? vintage,
+    List<String> grapeVarieties = const [],
+    String? shopName,
+    String? storageLocation,
+    String? imagePath,
+    bool isConsumed = false,
+    int? referencePrice,
+  }) async {
+    final wine = Wine(
+      id: wineId,
+      name: name,
+      producer: producer,
+      country: country,
+      region: region,
+      vintage: vintage,
+      type: type,
+      grapeVarieties: grapeVarieties,
+    );
+    final bottle = Bottle(
+      id: bottleId,
+      wineId: wineId,
+      purchaseDate: purchaseDate,
+      purchasePrice: purchasePrice,
+      shopName: shopName,
+      storageLocation: storageLocation,
+      imagePath: imagePath,
+      isConsumed: isConsumed,
+    );
+    final price = referencePrice == null
+        ? null
+        : PriceObservation(
+            id: _uuid.v4(),
+            wineId: wineId,
+            sourceName: 'Manual reference',
+            price: referencePrice,
+            observedAt: DateTime.now(),
+            note: 'User-entered baseline price',
+          );
+
+    await _database.updateWinePurchase(
+      wine: wine,
+      bottle: bottle,
+      referencePrice: price,
+    );
+    notifyListeners();
+  }
+
+  Future<void> deleteWinePurchase({
+    required String wineId,
+    required String bottleId,
+  }) async {
+    await _database.deleteWinePurchase(wineId: wineId, bottleId: bottleId);
+    notifyListeners();
+  }
+
   Future<void> addTastingNote({
     required String wineId,
     required DateTime tastedAt,
@@ -137,6 +202,48 @@ class MiruvorStore extends ChangeNotifier {
         memo: memo,
       ),
     );
+    notifyListeners();
+  }
+
+  Future<void> updateTastingNote({
+    required String id,
+    required String wineId,
+    required DateTime tastedAt,
+    required double rating,
+    String? bottleId,
+    String? imagePath,
+    String? aroma,
+    String? palate,
+    String? pairing,
+    int? acidity,
+    int? tannin,
+    int? body,
+    int? sweetness,
+    String? memo,
+  }) async {
+    await _database.updateTastingNote(
+      TastingNote(
+        id: id,
+        wineId: wineId,
+        bottleId: bottleId,
+        tastedAt: tastedAt,
+        rating: rating,
+        imagePath: imagePath,
+        aroma: aroma,
+        palate: palate,
+        pairing: pairing,
+        acidity: acidity,
+        tannin: tannin,
+        body: body,
+        sweetness: sweetness,
+        memo: memo,
+      ),
+    );
+    notifyListeners();
+  }
+
+  Future<void> deleteTastingNote(String id) async {
+    await _database.deleteTastingNote(id);
     notifyListeners();
   }
 

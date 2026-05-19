@@ -100,6 +100,97 @@ void main() {
 
     await _disposeApp(tester, store);
   });
+
+  testWidgets('Wine purchase can be edited and deleted', (tester) async {
+    final store = await _pumpApp(tester);
+
+    await store.addWinePurchase(
+      name: 'Original Wine',
+      producer: 'Original Producer',
+      country: 'France',
+      type: WineType.red,
+      purchaseDate: DateTime(2026, 5, 1),
+      purchasePrice: 42000,
+      referencePrice: 50000,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cellar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Original Wine'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('수정'));
+    await tester.pumpAndSettle();
+    await _enterTextByLabel(tester, '이름', 'Edited Wine');
+    await _enterTextByLabel(tester, '구매 가격', '55000');
+    await tester.tap(find.text('수정 저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Edited Wine'), findsOneWidget);
+    expect(find.textContaining('Original Wine'), findsNothing);
+    expect(find.text('KRW 55,000'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Edited Wine'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('삭제'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '삭제'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Edited Wine'), findsNothing);
+    expect(find.text('아직 등록된 와인이 없습니다.'), findsOneWidget);
+
+    await _disposeApp(tester, store);
+  });
+
+  testWidgets('Tasting note can be edited and deleted', (tester) async {
+    final store = await _pumpApp(tester);
+
+    await store.addWinePurchase(
+      name: 'Note Wine',
+      producer: 'Note Producer',
+      country: 'Italy',
+      type: WineType.red,
+      purchaseDate: DateTime(2026, 5, 1),
+      purchasePrice: 39000,
+    );
+    final wine = (await store.database.watchCellarSnapshotOnce()).single.wine;
+    await store.addTastingNote(
+      wineId: wine.id,
+      tastedAt: DateTime(2026, 5, 2),
+      rating: 4.0,
+      pairing: 'Pasta',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Notes'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('노트 작업'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('수정'));
+    await tester.pumpAndSettle();
+
+    await _enterTextByLabel(tester, '평점', '3.5');
+    await _enterTextByLabel(tester, '페어링 음식', 'Steak');
+    await tester.tap(find.text('수정 저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('3.5 / 5.0'), findsOneWidget);
+    expect(find.text('Pairing: Steak'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('노트 작업'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('삭제'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '삭제'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('3.5 / 5.0'), findsNothing);
+    expect(find.text('테이스팅 노트 추가'), findsOneWidget);
+
+    await _disposeApp(tester, store);
+  });
 }
 
 Future<MiruvorStore> _pumpApp(WidgetTester tester) async {
@@ -115,9 +206,16 @@ Future<void> _enterTextByLabel(
   String value,
 ) async {
   final finder = find.widgetWithText(TextFormField, label);
+  for (var attempts = 0;
+      attempts < 8 && finder.evaluate().isEmpty;
+      attempts++) {
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -260));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.enterText(finder, value);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _enterTextField(

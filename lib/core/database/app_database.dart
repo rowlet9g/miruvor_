@@ -237,6 +237,82 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  Future<void> updateWinePurchase({
+    required Wine wine,
+    required Bottle bottle,
+    PriceObservation? referencePrice,
+  }) {
+    final now = DateTime.now();
+
+    return transaction(() async {
+      await (update(wineRecords)..where((table) => table.id.equals(wine.id)))
+          .write(
+        WineRecordsCompanion(
+          name: Value(wine.name),
+          producer: Value(wine.producer),
+          country: Value(wine.country),
+          region: Value(wine.region),
+          vintage: Value(wine.vintage),
+          type: Value(wine.type.name),
+          grapeVarietiesJson: Value(jsonEncode(wine.grapeVarieties)),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await (update(bottleRecords)
+            ..where((table) => table.id.equals(bottle.id)))
+          .write(
+        BottleRecordsCompanion(
+          purchaseDate: Value(bottle.purchaseDate),
+          purchasePrice: Value(bottle.purchasePrice),
+          shopName: Value(bottle.shopName),
+          imagePath: Value(bottle.imagePath),
+          storageLocation: Value(bottle.storageLocation),
+          isConsumed: Value(bottle.isConsumed),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await (delete(priceObservationRecords)
+            ..where((table) => table.wineId.equals(wine.id)))
+          .go();
+
+      if (referencePrice != null) {
+        await into(priceObservationRecords).insert(
+          PriceObservationRecordsCompanion.insert(
+            id: referencePrice.id,
+            wineId: referencePrice.wineId,
+            sourceName: referencePrice.sourceName,
+            price: referencePrice.price,
+            observedAt: referencePrice.observedAt,
+            url: Value(referencePrice.url),
+            note: Value(referencePrice.note),
+            isInStock: Value(referencePrice.isInStock),
+            createdAt: now,
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> deleteWinePurchase({
+    required String wineId,
+    required String bottleId,
+  }) {
+    return transaction(() async {
+      await (delete(priceObservationRecords)
+            ..where((table) => table.wineId.equals(wineId)))
+          .go();
+      await (delete(tastingNoteRecords)
+            ..where((table) => table.wineId.equals(wineId)))
+          .go();
+      await (delete(bottleRecords)..where((table) => table.id.equals(bottleId)))
+          .go();
+      await (delete(wineRecords)..where((table) => table.id.equals(wineId)))
+          .go();
+    });
+  }
+
   Future<void> insertTastingNote(TastingNote note) {
     final now = DateTime.now();
 
@@ -260,6 +336,36 @@ class AppDatabase extends _$AppDatabase {
         updatedAt: now,
       ),
     );
+  }
+
+  Future<void> updateTastingNote(TastingNote note) {
+    final now = DateTime.now();
+
+    return (update(tastingNoteRecords)
+          ..where((table) => table.id.equals(note.id)))
+        .write(
+      TastingNoteRecordsCompanion(
+        wineId: Value(note.wineId),
+        bottleId: Value(note.bottleId),
+        tastedAt: Value(note.tastedAt),
+        rating: Value(note.rating),
+        imagePath: Value(note.imagePath),
+        aroma: Value(note.aroma),
+        palate: Value(note.palate),
+        pairing: Value(note.pairing),
+        acidity: Value(note.acidity),
+        tannin: Value(note.tannin),
+        body: Value(note.body),
+        sweetness: Value(note.sweetness),
+        memo: Value(note.memo),
+        updatedAt: Value(now),
+      ),
+    );
+  }
+
+  Future<void> deleteTastingNote(String id) {
+    return (delete(tastingNoteRecords)..where((table) => table.id.equals(id)))
+        .go();
   }
 
   Wine _wineFromRecord(WineRecord row) {

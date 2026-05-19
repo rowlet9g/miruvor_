@@ -7,6 +7,7 @@ import 'package:miruvor/core/models/tasting_note.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
+import 'package:miruvor/features/cellar/presentation/add_wine_page.dart';
 import 'package:miruvor/features/price_check/presentation/price_spectrum.dart';
 import 'package:miruvor/features/shared/presentation/section_title.dart';
 
@@ -21,7 +22,21 @@ class WineDetailPage extends StatelessWidget {
     final store = MiruvorScope.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Wine Detail')),
+      appBar: AppBar(
+        title: const Text('Wine Detail'),
+        actions: [
+          IconButton(
+            tooltip: '수정',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => _editWine(context),
+          ),
+          IconButton(
+            tooltip: '삭제',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _deleteWine(context),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
@@ -89,6 +104,61 @@ class WineDetailPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _editWine(BuildContext context) async {
+    final store = MiruvorScope.of(context);
+    final reference = await store.latestPriceForWine(wine.id);
+    if (!context.mounted) {
+      return;
+    }
+
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => AddWinePage(
+          initialWine: wine,
+          initialBottle: bottle,
+          initialReferencePrice: reference,
+        ),
+      ),
+    );
+
+    if (saved == true && context.mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _deleteWine(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('와인 삭제'),
+          content: const Text('이 구매 기록과 연결된 가격 정보, 테이스팅 노트가 함께 삭제됩니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final store = MiruvorScope.of(context);
+    await store.deleteWinePurchase(wineId: wine.id, bottleId: bottle.id);
+
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }
 

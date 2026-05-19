@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:miruvor/core/media/local_image_store.dart';
+import 'package:miruvor/core/models/bottle.dart';
+import 'package:miruvor/core/models/price_observation.dart';
+import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class AddWinePage extends StatefulWidget {
-  const AddWinePage({super.key});
+  const AddWinePage({
+    this.initialWine,
+    this.initialBottle,
+    this.initialReferencePrice,
+    super.key,
+  });
+
+  final Wine? initialWine;
+  final Bottle? initialBottle;
+  final PriceObservation? initialReferencePrice;
 
   @override
   State<AddWinePage> createState() => _AddWinePageState();
@@ -27,7 +39,35 @@ class _AddWinePageState extends State<AddWinePage> {
 
   WineType _type = WineType.red;
   String? _selectedImagePath;
+  bool _isConsumed = false;
   bool _isSaving = false;
+  bool get _isEditing =>
+      widget.initialWine != null && widget.initialBottle != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final wine = widget.initialWine;
+    final bottle = widget.initialBottle;
+    final referencePrice = widget.initialReferencePrice;
+
+    if (wine != null && bottle != null) {
+      _nameController.text = wine.name;
+      _producerController.text = wine.producer;
+      _countryController.text = wine.country;
+      _regionController.text = wine.region ?? '';
+      _vintageController.text = wine.vintage?.toString() ?? '';
+      _grapeVarietiesController.text = wine.grapeVarieties.join(', ');
+      _shopNameController.text = bottle.shopName ?? '';
+      _storageLocationController.text = bottle.storageLocation ?? '';
+      _purchasePriceController.text = bottle.purchasePrice.toString();
+      _referencePriceController.text = referencePrice?.price.toString() ?? '';
+      _type = wine.type;
+      _selectedImagePath = bottle.imagePath;
+      _isConsumed = bottle.isConsumed;
+    }
+  }
 
   @override
   void dispose() {
@@ -47,7 +87,7 @@ class _AddWinePageState extends State<AddWinePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Wine')),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit Wine' : 'Add Wine')),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -140,6 +180,16 @@ class _AddWinePageState extends State<AddWinePage> {
               keyboardType: TextInputType.number,
               validator: _optionalInt,
             ),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              value: _isConsumed,
+              contentPadding: EdgeInsets.zero,
+              title: const Text('마신 병으로 표시'),
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: (value) {
+                setState(() => _isConsumed = value ?? false);
+              },
+            ),
             const SizedBox(height: 20),
             FilledButton.icon(
               icon: _isSaving
@@ -148,7 +198,7 @@ class _AddWinePageState extends State<AddWinePage> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: const Text('저장'),
+              label: Text(_isEditing ? '수정 저장' : '저장'),
               onPressed: _isSaving ? null : _save,
             ),
           ],
@@ -166,32 +216,50 @@ class _AddWinePageState extends State<AddWinePage> {
     final store = MiruvorScope.of(context);
 
     try {
-      final storedImagePath = _selectedImagePath == null
-          ? null
-          : await _imageStore.copyIntoAppStorage(
-              _selectedImagePath!,
-              prefix: 'bottle',
-            );
+      final storedImagePath = await _storedImagePath();
+      final referencePrice = _nullableInt(_referencePriceController);
+      final grapeVarieties = _grapeVarietiesController.text
+          .split(',')
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .toList();
 
-      await store.addWinePurchase(
-        name: _nameController.text.trim(),
-        producer: _producerController.text.trim(),
-        country: _countryController.text.trim(),
-        region: _nullableText(_regionController),
-        vintage: _nullableInt(_vintageController),
-        type: _type,
-        grapeVarieties: _grapeVarietiesController.text
-            .split(',')
-            .map((value) => value.trim())
-            .where((value) => value.isNotEmpty)
-            .toList(),
-        shopName: _nullableText(_shopNameController),
-        storageLocation: _nullableText(_storageLocationController),
-        purchaseDate: DateTime.now(),
-        purchasePrice: _requiredParsedInt(_purchasePriceController),
-        referencePrice: _nullableInt(_referencePriceController),
-        imagePath: storedImagePath,
-      );
+      if (_isEditing) {
+        await store.updateWinePurchase(
+          wineId: widget.initialWine!.id,
+          bottleId: widget.initialBottle!.id,
+          purchaseDate: widget.initialBottle!.purchaseDate,
+          name: _nameController.text.trim(),
+          producer: _producerController.text.trim(),
+          country: _countryController.text.trim(),
+          region: _nullableText(_regionController),
+          vintage: _nullableInt(_vintageController),
+          type: _type,
+          grapeVarieties: grapeVarieties,
+          shopName: _nullableText(_shopNameController),
+          storageLocation: _nullableText(_storageLocationController),
+          purchasePrice: _requiredParsedInt(_purchasePriceController),
+          referencePrice: referencePrice,
+          imagePath: storedImagePath,
+          isConsumed: _isConsumed,
+        );
+      } else {
+        await store.addWinePurchase(
+          name: _nameController.text.trim(),
+          producer: _producerController.text.trim(),
+          country: _countryController.text.trim(),
+          region: _nullableText(_regionController),
+          vintage: _nullableInt(_vintageController),
+          type: _type,
+          grapeVarieties: grapeVarieties,
+          shopName: _nullableText(_shopNameController),
+          storageLocation: _nullableText(_storageLocationController),
+          purchaseDate: DateTime.now(),
+          purchasePrice: _requiredParsedInt(_purchasePriceController),
+          referencePrice: referencePrice,
+          imagePath: storedImagePath,
+        );
+      }
     } catch (_) {
       if (!mounted) {
         return;
@@ -208,7 +276,21 @@ class _AddWinePageState extends State<AddWinePage> {
       return;
     }
 
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
+  }
+
+  Future<String?> _storedImagePath() async {
+    if (_selectedImagePath == null) {
+      return null;
+    }
+    if (_selectedImagePath == widget.initialBottle?.imagePath) {
+      return _selectedImagePath;
+    }
+
+    return _imageStore.copyIntoAppStorage(
+      _selectedImagePath!,
+      prefix: 'bottle',
+    );
   }
 
   String? _required(String? value) {
