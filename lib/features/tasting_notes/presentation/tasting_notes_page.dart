@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:miruvor/core/media/local_image_store.dart';
 import 'package:miruvor/core/models/tasting_note.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
+import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class TastingNotesPage extends StatelessWidget {
   const TastingNotesPage({super.key});
@@ -76,6 +80,21 @@ class _TastingNoteListCard extends StatelessWidget {
                 Text(
                   '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
                 ),
+                if (note.imagePath != null) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      File(note.imagePath!),
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 if (note.aroma != null) Text('Aroma: ${note.aroma}'),
                 if (note.palate != null) ...[
@@ -109,8 +128,10 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
   final _palateController = TextEditingController();
   final _memoController = TextEditingController();
   final _ratingController = TextEditingController(text: '4.0');
+  final _imageStore = LocalImageStore();
 
   String? _wineId;
+  String? _selectedImagePath;
   bool _isSaving = false;
 
   @override
@@ -139,16 +160,12 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                Container(
+                PhotoPickerField(
+                  imagePath: _selectedImagePath,
                   height: 140,
-                  decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.add_a_photo_outlined, size: 34),
-                  ),
+                  onImageSelected: (path) {
+                    setState(() => _selectedImagePath = path);
+                  },
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
@@ -226,6 +243,13 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
     final store = MiruvorScope.of(context);
 
     try {
+      final storedImagePath = _selectedImagePath == null
+          ? null
+          : await _imageStore.copyIntoAppStorage(
+              _selectedImagePath!,
+              prefix: 'tasting-note',
+            );
+
       await store.addTastingNote(
         wineId: _wineId!,
         tastedAt: DateTime.now(),
@@ -234,6 +258,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
         aroma: _nullableText(_aromaController),
         palate: _nullableText(_palateController),
         memo: _nullableText(_memoController),
+        imagePath: storedImagePath,
       );
     } catch (_) {
       if (!mounted) {

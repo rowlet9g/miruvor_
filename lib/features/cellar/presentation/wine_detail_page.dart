@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:miruvor/core/models/bottle.dart';
 import 'package:miruvor/core/models/price_observation.dart';
@@ -23,7 +25,7 @@ class WineDetailPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          _HeroBottle(wine: wine),
+          _HeroBottle(wine: wine, bottle: bottle),
           const SizedBox(height: 20),
           const SectionTitle(title: '구매 정보'),
           const SizedBox(height: 12),
@@ -91,9 +93,10 @@ class WineDetailPage extends StatelessWidget {
 }
 
 class _HeroBottle extends StatelessWidget {
-  const _HeroBottle({required this.wine});
+  const _HeroBottle({required this.wine, required this.bottle});
 
   final Wine wine;
+  final Bottle bottle;
 
   @override
   Widget build(BuildContext context) {
@@ -107,17 +110,20 @@ class _HeroBottle extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 72,
-              height: 104,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.wine_bar,
-                size: 36,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 72,
+                height: 104,
+                child: bottle.imagePath == null
+                    ? _FallbackBottleIcon()
+                    : Image.file(
+                        File(bottle.imagePath!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _FallbackBottleIcon();
+                        },
+                      ),
               ),
             ),
             const SizedBox(width: 16),
@@ -147,6 +153,22 @@ class _HeroBottle extends StatelessWidget {
   }
 }
 
+class _FallbackBottleIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+      ),
+      child: Icon(
+        Icons.wine_bar,
+        size: 36,
+        color: Theme.of(context).colorScheme.onPrimaryContainer,
+      ),
+    );
+  }
+}
+
 class _TastingNoteCard extends StatelessWidget {
   const _TastingNoteCard({required this.note});
 
@@ -164,6 +186,21 @@ class _TastingNoteCard extends StatelessWidget {
               '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
               style: Theme.of(context).textTheme.titleSmall,
             ),
+            if (note.imagePath != null) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(note.imagePath!),
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+            ],
             if (note.aroma != null) ...[
               const SizedBox(height: 8),
               Text('Aroma: ${note.aroma}'),

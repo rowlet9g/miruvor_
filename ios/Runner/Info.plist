@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Miruvor needs camera access to capture wine and tasting note photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Miruvor needs photo library access to attach wine and tasting note photos.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

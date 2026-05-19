@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:miruvor/core/media/local_image_store.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
+import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class AddWinePage extends StatefulWidget {
   const AddWinePage({super.key});
@@ -21,8 +23,10 @@ class _AddWinePageState extends State<AddWinePage> {
   final _storageLocationController = TextEditingController();
   final _purchasePriceController = TextEditingController();
   final _referencePriceController = TextEditingController();
+  final _imageStore = LocalImageStore();
 
   WineType _type = WineType.red;
+  String? _selectedImagePath;
   bool _isSaving = false;
 
   @override
@@ -49,15 +53,11 @@ class _AddWinePageState extends State<AddWinePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Center(
-                child: Icon(Icons.add_a_photo_outlined, size: 36),
-              ),
+            PhotoPickerField(
+              imagePath: _selectedImagePath,
+              onImageSelected: (path) {
+                setState(() => _selectedImagePath = path);
+              },
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -166,6 +166,13 @@ class _AddWinePageState extends State<AddWinePage> {
     final store = MiruvorScope.of(context);
 
     try {
+      final storedImagePath = _selectedImagePath == null
+          ? null
+          : await _imageStore.copyIntoAppStorage(
+              _selectedImagePath!,
+              prefix: 'bottle',
+            );
+
       await store.addWinePurchase(
         name: _nameController.text.trim(),
         producer: _producerController.text.trim(),
@@ -183,6 +190,7 @@ class _AddWinePageState extends State<AddWinePage> {
         purchaseDate: DateTime.now(),
         purchasePrice: _requiredParsedInt(_purchasePriceController),
         referencePrice: _nullableInt(_referencePriceController),
+        imagePath: storedImagePath,
       );
     } catch (_) {
       if (!mounted) {

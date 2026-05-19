@@ -35,6 +35,10 @@ User-owned purchase instance.
 - Storage location
 - Consumed state
 
+Images are copied into the app documents directory before their paths are saved.
+Database rows should not point at picker cache files because those files may be
+removed by the platform.
+
 ### TastingNote
 
 User's own drinking record.

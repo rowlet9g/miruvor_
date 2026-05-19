@@ -7,6 +7,8 @@ Personal wine-log mobile application built with Flutter.
 - Record purchased wines with producer, vintage, grape varieties, purchase date,
   purchase price, shop, storage location, and photo path.
 - Keep tasting notes with rating, aroma, palate, pairing, and personal memo.
+- Attach photos from the camera or photo library and store them under the app's
+  local documents directory.
 - Compare purchase price against a reference price entered manually at first.
 - Search and filter the local wine collection by name, producer, country, type,
   and price range.
@@ -38,6 +40,6 @@ lib/
 1. Install or expose Flutter SDK on `PATH`.
 2. Run `flutter create .` in this directory to generate platform folders.
 3. Run `flutter pub get`.
-4. Add image picking and app-local image storage.
-5. Add working search and filters against the local SQLite database.
+4. Add working search and filters against the local SQLite database.
+5. Add edit/delete flows for wines, bottles, and tasting notes.
 6. Add price-source adapters only for allowed APIs or user-entered references.
