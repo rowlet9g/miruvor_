@@ -92,3 +92,8 @@ Store source-specific fields inside adapter DTOs or metadata tables.
 7. Manual reference prices
 8. Price alerts
 9. External API adapters
+
+The first search/filter pass is intentionally app-side filtering over live Drift
+streams. This keeps the UI behavior simple while the local dataset is small. If
+the cellar grows large, move the same `WineFilter` contract into SQL-backed
+queries without changing the presentation widgets.

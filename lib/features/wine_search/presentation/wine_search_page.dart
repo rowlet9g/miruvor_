@@ -1,105 +1,121 @@
 import 'package:flutter/material.dart';
-import 'package:miruvor/core/models/wine.dart';
+import 'package:miruvor/core/database/app_database.dart';
+import 'package:miruvor/core/models/wine_filter.dart';
+import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/features/shared/presentation/wine_card.dart';
+import 'package:miruvor/features/shared/presentation/wine_filter_panel.dart';
 
-class WineSearchPage extends StatelessWidget {
+class WineSearchPage extends StatefulWidget {
   const WineSearchPage({super.key});
+
+  @override
+  State<WineSearchPage> createState() => _WineSearchPageState();
+}
+
+class _WineSearchPageState extends State<WineSearchPage> {
+  final _queryController = TextEditingController();
+  final _countryController = TextEditingController();
+  final _minPriceController = TextEditingController();
+  final _maxPriceController = TextEditingController();
+
+  WineType? _selectedType;
+
+  WineFilter get _filter {
+    return WineFilter(
+      query: _queryController.text,
+      country: _countryController.text,
+      type: _selectedType,
+      minPrice: _parseInt(_minPriceController.text),
+      maxPrice: _parseInt(_maxPriceController.text),
+    );
+  }
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    _countryController.dispose();
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final store = MiruvorScope.of(context);
+    final filter = _filter;
 
-    return StreamBuilder<List<Wine>>(
-      stream: store.watchWines(),
+    return StreamBuilder<List<WineWithBottle>>(
+      stream: store.watchCellar(filter: filter),
       builder: (context, snapshot) {
-        final wines = snapshot.data ?? const <Wine>[];
+        final results = snapshot.data ?? const <WineWithBottle>[];
 
-        return ListView.separated(
+        return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: wines.length + 1,
-          separatorBuilder: (_, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return const _SearchControls();
-            }
-
-            final wine = wines[index - 1];
-            return WineCard(wine: wine);
-          },
+          children: [
+            WineFilterPanel(
+              queryController: _queryController,
+              countryController: _countryController,
+              minPriceController: _minPriceController,
+              maxPriceController: _maxPriceController,
+              selectedType: _selectedType,
+              hasActiveFilters: filter.hasActiveFilters,
+              queryHint: '와인 이름, 생산자, 품종 검색',
+              onChanged: _refresh,
+              onTypeChanged: (type) {
+                setState(() => _selectedType = type);
+              },
+              onReset: _resetFilters,
+            ),
+            const SizedBox(height: 16),
+            if (results.isEmpty)
+              _EmptyResultsCard(hasActiveFilters: filter.hasActiveFilters)
+            else
+              for (final item in results) ...[
+                WineCard(wine: item.wine, bottle: item.bottle),
+                const SizedBox(height: 12),
+              ],
+          ],
         );
       },
     );
   }
+
+  void _refresh() {
+    setState(() {});
+  }
+
+  void _resetFilters() {
+    _queryController.clear();
+    _countryController.clear();
+    _minPriceController.clear();
+    _maxPriceController.clear();
+    setState(() => _selectedType = null);
+  }
+
+  int? _parseInt(String value) {
+    if (value.trim().isEmpty) {
+      return null;
+    }
+
+    return int.tryParse(value.trim());
+  }
 }
 
-class _SearchControls extends StatelessWidget {
-  const _SearchControls();
+class _EmptyResultsCard extends StatelessWidget {
+  const _EmptyResultsCard({required this.hasActiveFilters});
+
+  final bool hasActiveFilters;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TextField(
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
-            hintText: '와인 이름 검색',
-          ),
-          textInputAction: TextInputAction.search,
-          onChanged: (_) {},
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          hasActiveFilters ? '조건에 맞는 와인이 없습니다.' : '아직 검색할 와인이 없습니다.',
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: '국가'),
-                items: const [
-                  DropdownMenuItem(value: 'france', child: Text('France')),
-                  DropdownMenuItem(value: 'italy', child: Text('Italy')),
-                  DropdownMenuItem(value: 'usa', child: Text('USA')),
-                  DropdownMenuItem(value: 'korea', child: Text('Korea')),
-                ],
-                onChanged: (_) {},
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: '종류'),
-                items: const [
-                  DropdownMenuItem(value: 'red', child: Text('Red')),
-                  DropdownMenuItem(value: 'white', child: Text('White')),
-                  DropdownMenuItem(value: 'rose', child: Text('Rose')),
-                  DropdownMenuItem(
-                    value: 'sparkling',
-                    child: Text('Sparkling'),
-                  ),
-                ],
-                onChanged: (_) {},
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextFormField(
-                decoration: const InputDecoration(labelText: '최소 가격'),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                decoration: const InputDecoration(labelText: '최대 가격'),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }

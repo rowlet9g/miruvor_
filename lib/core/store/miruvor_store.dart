@@ -4,6 +4,7 @@ import 'package:miruvor/core/models/bottle.dart';
 import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/models/tasting_note.dart';
 import 'package:miruvor/core/models/wine.dart';
+import 'package:miruvor/core/models/wine_filter.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 import 'package:uuid/uuid.dart';
 
@@ -17,7 +18,15 @@ class MiruvorStore extends ChangeNotifier {
 
   AppDatabase get database => _database;
 
-  Stream<List<WineWithBottle>> watchCellar() => _database.watchCellar();
+  Stream<List<WineWithBottle>> watchCellar({
+    WineFilter filter = const WineFilter(),
+  }) {
+    return _database.watchCellar().map((items) {
+      return items.where((item) {
+        return filter.matches(item.wine, item.bottle);
+      }).toList();
+    });
+  }
 
   Stream<List<Wine>> watchWines() => _database.watchWines();
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:miruvor/app/app.dart';
 import 'package:miruvor/core/database/app_database.dart';
+import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_store.dart';
 
 void main() {
@@ -54,6 +55,51 @@ void main() {
 
     await _disposeApp(tester, store);
   });
+
+  testWidgets('Cellar filters by query and price', (tester) async {
+    final store = await _pumpApp(tester);
+
+    await store.addWinePurchase(
+      name: 'Left Bank Blend',
+      producer: 'Test Chateau',
+      country: 'France',
+      type: WineType.red,
+      purchaseDate: DateTime(2026, 5, 1),
+      purchasePrice: 42000,
+      grapeVarieties: const ['Cabernet Sauvignon'],
+    );
+    await store.addWinePurchase(
+      name: 'Riesling Trocken',
+      producer: 'Test Weingut',
+      country: 'Germany',
+      type: WineType.white,
+      purchaseDate: DateTime(2026, 5, 2),
+      purchasePrice: 82000,
+      grapeVarieties: const ['Riesling'],
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cellar'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Left Bank Blend'), findsOneWidget);
+    expect(find.textContaining('Riesling Trocken'), findsOneWidget);
+
+    await _enterTextField(tester,
+        hintText: '이름, 생산자, 국가 검색', value: 'Riesling');
+
+    expect(find.textContaining('Left Bank Blend'), findsNothing);
+    expect(find.textContaining('Riesling Trocken'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('필터 초기화'));
+    await tester.pumpAndSettle();
+    await _enterTextField(tester, labelText: '최대 가격', value: '50000');
+
+    expect(find.textContaining('Left Bank Blend'), findsOneWidget);
+    expect(find.textContaining('Riesling Trocken'), findsNothing);
+
+    await _disposeApp(tester, store);
+  });
 }
 
 Future<MiruvorStore> _pumpApp(WidgetTester tester) async {
@@ -72,6 +118,23 @@ Future<void> _enterTextByLabel(
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.enterText(finder, value);
+}
+
+Future<void> _enterTextField(
+  WidgetTester tester, {
+  String? hintText,
+  String? labelText,
+  required String value,
+}) async {
+  final finder = find.byWidgetPredicate((widget) {
+    return widget is TextField &&
+        widget.decoration?.hintText == hintText &&
+        widget.decoration?.labelText == labelText;
+  });
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.enterText(finder, value);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _disposeApp(WidgetTester tester, MiruvorStore store) async {
