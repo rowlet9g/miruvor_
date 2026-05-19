@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:miruvor/core/models/bottle.dart';
+import 'package:miruvor/core/models/price_observation.dart';
+import 'package:miruvor/core/models/tasting_note.dart';
 import 'package:miruvor/core/models/wine.dart';
-import 'package:miruvor/core/sample/sample_data.dart';
+import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
 import 'package:miruvor/features/price_check/presentation/price_spectrum.dart';
 import 'package:miruvor/features/shared/presentation/section_title.dart';
@@ -14,14 +16,7 @@ class WineDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int? referencePrice;
-    for (final price in samplePriceObservations) {
-      if (price.wineId == wine.id) {
-        referencePrice = price.price;
-        break;
-      }
-    }
-    final notes = sampleTastingNotes.where((note) => note.wineId == wine.id);
+    final store = MiruvorScope.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Wine Detail')),
@@ -40,48 +35,55 @@ class WineDetailPage extends StatelessWidget {
               _InfoRow('보관', bottle.storageLocation ?? '-'),
             ],
           ),
-          if (referencePrice != null) ...[
-            const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: PriceSpectrum(
-                  purchasePrice: bottle.purchasePrice,
-                  referencePrice: referencePrice,
+          FutureBuilder<PriceObservation?>(
+            future: store.latestPriceForWine(wine.id),
+            builder: (context, snapshot) {
+              final reference = snapshot.data;
+              if (reference == null) {
+                return const SizedBox.shrink();
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: PriceSpectrum(
+                      purchasePrice: bottle.purchasePrice,
+                      referencePrice: reference.price,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
           const SizedBox(height: 20),
           const SectionTitle(title: '테이스팅 노트'),
           const SizedBox(height: 12),
-          for (final note in notes)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
-                      style: Theme.of(context).textTheme.titleSmall,
+          FutureBuilder<List<TastingNote>>(
+            future: store.notesForWine(wine.id),
+            builder: (context, snapshot) {
+              final notes = snapshot.data ?? const <TastingNote>[];
+              if (notes.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('아직 작성된 테이스팅 노트가 없습니다.'),
+                  ),
+                );
+              }
+
+              return Column(
+                children: [
+                  for (final note in notes)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _TastingNoteCard(note: note),
                     ),
-                    if (note.aroma != null) ...[
-                      const SizedBox(height: 8),
-                      Text('Aroma: ${note.aroma}'),
-                    ],
-                    if (note.palate != null) ...[
-                      const SizedBox(height: 8),
-                      Text('Palate: ${note.palate}'),
-                    ],
-                    if (note.pairing != null) ...[
-                      const SizedBox(height: 8),
-                      Text('Pairing: ${note.pairing}'),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
@@ -96,6 +98,8 @@ class _HeroBottle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final grapeText =
+        wine.grapeVarieties.isEmpty ? '품종 미입력' : wine.grapeVarieties.join(', ');
 
     return Card(
       child: Padding(
@@ -132,10 +136,46 @@ class _HeroBottle extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text('${wine.country} · ${wine.region ?? '-'}'),
                   const SizedBox(height: 8),
-                  Text(wine.grapeVarieties.join(', ')),
+                  Text(grapeText),
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TastingNoteCard extends StatelessWidget {
+  const _TastingNoteCard({required this.note});
+
+  final TastingNote note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            if (note.aroma != null) ...[
+              const SizedBox(height: 8),
+              Text('Aroma: ${note.aroma}'),
+            ],
+            if (note.palate != null) ...[
+              const SizedBox(height: 8),
+              Text('Palate: ${note.palate}'),
+            ],
+            if (note.pairing != null) ...[
+              const SizedBox(height: 8),
+              Text('Pairing: ${note.pairing}'),
+            ],
           ],
         ),
       ),

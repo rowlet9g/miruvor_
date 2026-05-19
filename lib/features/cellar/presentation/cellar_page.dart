@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:miruvor/core/sample/sample_data.dart';
+import 'package:miruvor/core/database/app_database.dart';
+import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/features/cellar/presentation/wine_detail_page.dart';
 import 'package:miruvor/features/shared/presentation/wine_card.dart';
 
@@ -8,27 +9,36 @@ class CellarPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      itemCount: sampleBottles.length + 1,
-      separatorBuilder: (_, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return const _CellarFilters();
-        }
+    final store = MiruvorScope.of(context);
 
-        final bottle = sampleBottles[index - 1];
-        final wine = sampleWines.firstWhere((wine) => wine.id == bottle.wineId);
+    return StreamBuilder<List<WineWithBottle>>(
+      stream: store.watchCellar(),
+      builder: (context, snapshot) {
+        final cellar = snapshot.data ?? const <WineWithBottle>[];
 
-        return WineCard(
-          wine: wine,
-          bottle: bottle,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (context) =>
-                    WineDetailPage(wine: wine, bottle: bottle),
-              ),
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          itemCount: cellar.length + 1,
+          separatorBuilder: (_, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return const _CellarFilters();
+            }
+
+            final item = cellar[index - 1];
+            return WineCard(
+              wine: item.wine,
+              bottle: item.bottle,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => WineDetailPage(
+                      wine: item.wine,
+                      bottle: item.bottle,
+                    ),
+                  ),
+                );
+              },
             );
           },
         );

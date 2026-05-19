@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:miruvor/core/sample/sample_data.dart';
+import 'package:miruvor/core/models/wine.dart';
+import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/features/shared/presentation/wine_card.dart';
 
 class WineSearchPage extends StatelessWidget {
@@ -7,17 +8,26 @@ class WineSearchPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      itemCount: sampleWines.length + 1,
-      separatorBuilder: (_, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return const _SearchControls();
-        }
+    final store = MiruvorScope.of(context);
 
-        final wine = sampleWines[index - 1];
-        return WineCard(wine: wine);
+    return StreamBuilder<List<Wine>>(
+      stream: store.watchWines(),
+      builder: (context, snapshot) {
+        final wines = snapshot.data ?? const <Wine>[];
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          itemCount: wines.length + 1,
+          separatorBuilder: (_, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return const _SearchControls();
+            }
+
+            final wine = wines[index - 1];
+            return WineCard(wine: wine);
+          },
+        );
       },
     );
   }

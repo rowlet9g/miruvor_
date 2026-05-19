@@ -21,8 +21,9 @@ are verified.
 lib/
   app/                 App entry, theme, top-level shell
   core/
+    database/          Drift SQLite schema and local queries
     models/            Domain models shared across features
-    sample/            Temporary in-memory sample data
+    store/             App-level persistence facade
     utils/             Formatting and small shared helpers
   features/
     cellar/            Purchased bottle and wine detail flows
@@ -37,7 +38,6 @@ lib/
 1. Install or expose Flutter SDK on `PATH`.
 2. Run `flutter create .` in this directory to generate platform folders.
 3. Run `flutter pub get`.
-4. Replace `core/sample/sample_data.dart` with a local repository backed by
-   SQLite, preferably `drift`.
-5. Add image picking and app-local image storage.
+4. Add image picking and app-local image storage.
+5. Add working search and filters against the local SQLite database.
 6. Add price-source adapters only for allowed APIs or user-entered references.
