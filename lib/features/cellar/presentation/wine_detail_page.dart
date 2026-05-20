@@ -378,6 +378,11 @@ class _PriceObservationCard extends StatelessWidget {
             const SizedBox(width: 12),
             Text(formatKrw(observation.price)),
             IconButton(
+              tooltip: '가격 수정',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => _editObservation(context),
+            ),
+            IconButton(
               tooltip: '가격 삭제',
               icon: const Icon(Icons.delete_outline),
               onPressed: () => store.deletePriceObservation(observation.id),
@@ -387,12 +392,27 @@ class _PriceObservationCard extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _editObservation(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _PriceObservationSheet(
+        wineId: observation.wineId,
+        initialObservation: observation,
+      ),
+    );
+  }
 }
 
 class _PriceObservationSheet extends StatefulWidget {
-  const _PriceObservationSheet({required this.wineId});
+  const _PriceObservationSheet({
+    required this.wineId,
+    this.initialObservation,
+  });
 
   final String wineId;
+  final PriceObservation? initialObservation;
 
   @override
   State<_PriceObservationSheet> createState() => _PriceObservationSheetState();
@@ -406,6 +426,20 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
   final _noteController = TextEditingController();
 
   bool _isSaving = false;
+  bool get _isEditing => widget.initialObservation != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final observation = widget.initialObservation;
+    if (observation != null) {
+      _sourceController.text = observation.sourceName;
+      _priceController.text = observation.price.toString();
+      _urlController.text = observation.url ?? '';
+      _noteController.text = observation.note ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -430,7 +464,7 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '가격 관측치 추가',
+                _isEditing ? '가격 관측치 수정' : '가격 관측치 추가',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -470,7 +504,7 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save_outlined),
-                label: const Text('저장'),
+                label: Text(_isEditing ? '수정 저장' : '저장'),
                 onPressed: _isSaving ? null : _save,
               ),
             ],
@@ -488,14 +522,28 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
     setState(() => _isSaving = true);
     final store = MiruvorScope.of(context);
 
-    await store.addPriceObservation(
-      wineId: widget.wineId,
-      sourceName: _sourceController.text.trim(),
-      price: int.parse(_priceController.text.trim()),
-      observedAt: DateTime.now(),
-      url: _nullableText(_urlController),
-      note: _nullableText(_noteController),
-    );
+    final initialObservation = widget.initialObservation;
+    if (initialObservation == null) {
+      await store.addPriceObservation(
+        wineId: widget.wineId,
+        sourceName: _sourceController.text.trim(),
+        price: int.parse(_priceController.text.trim()),
+        observedAt: DateTime.now(),
+        url: _nullableText(_urlController),
+        note: _nullableText(_noteController),
+      );
+    } else {
+      await store.updatePriceObservation(
+        id: initialObservation.id,
+        wineId: initialObservation.wineId,
+        sourceName: _sourceController.text.trim(),
+        price: int.parse(_priceController.text.trim()),
+        observedAt: initialObservation.observedAt,
+        url: _nullableText(_urlController),
+        note: _nullableText(_noteController),
+        isInStock: initialObservation.isInStock,
+      );
+    }
 
     if (mounted) {
       Navigator.of(context).pop();

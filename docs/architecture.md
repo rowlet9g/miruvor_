@@ -71,7 +71,8 @@ Point-in-time reference price.
 Manual price observations are now a history, not a single replaceable field.
 The purchase form can still hold one `Manual reference` baseline, but additional
 seller prices entered from the detail screen are preserved when the purchase
-record is edited.
+record is edited. Detail-screen observations can be added, edited, or deleted
+without touching the purchase record itself.
 
 The first purchase judgement is intentionally simple:
 

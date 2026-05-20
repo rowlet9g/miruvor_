@@ -279,6 +279,31 @@ class MiruvorStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updatePriceObservation({
+    required String id,
+    required String wineId,
+    required String sourceName,
+    required int price,
+    required DateTime observedAt,
+    String? url,
+    String? note,
+    bool? isInStock,
+  }) async {
+    await _database.updatePriceObservation(
+      PriceObservation(
+        id: id,
+        wineId: wineId,
+        sourceName: sourceName,
+        price: price,
+        observedAt: observedAt,
+        url: url,
+        note: note,
+        isInStock: isInStock,
+      ),
+    );
+    notifyListeners();
+  }
+
   Future<void> deletePriceObservation(String id) async {
     await _database.deletePriceObservation(id);
     notifyListeners();

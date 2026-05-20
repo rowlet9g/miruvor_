@@ -411,6 +411,21 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  Future<void> updatePriceObservation(PriceObservation observation) {
+    return (update(priceObservationRecords)
+          ..where((table) => table.id.equals(observation.id)))
+        .write(
+      PriceObservationRecordsCompanion(
+        sourceName: Value(observation.sourceName),
+        price: Value(observation.price),
+        observedAt: Value(observation.observedAt),
+        url: Value(observation.url),
+        note: Value(observation.note),
+        isInStock: Value(observation.isInStock),
+      ),
+    );
+  }
+
   Future<void> deletePriceObservation(String id) {
     return (delete(priceObservationRecords)
           ..where((table) => table.id.equals(id)))

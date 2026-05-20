@@ -147,7 +147,8 @@ void main() {
     await _disposeApp(tester, store);
   });
 
-  testWidgets('Price observations can be added and removed', (tester) async {
+  testWidgets('Price observations can be added, edited, and removed',
+      (tester) async {
     final store = await _pumpApp(tester);
 
     await store.addWinePurchase(
@@ -178,6 +179,22 @@ void main() {
     expect(find.text('싸게 삼'), findsOneWidget);
     expect(find.text('Dailyshot'), findsOneWidget);
     expect(find.text('KRW 50,000'), findsWidgets);
+
+    final editPriceButton = find.byTooltip('가격 수정');
+    await tester.ensureVisible(editPriceButton);
+    await tester.pumpAndSettle();
+    await tester.tap(editPriceButton);
+    await tester.pumpAndSettle();
+    await _enterTextByLabel(tester, '판매처', 'Wine25');
+    await _enterTextByLabel(tester, '판매 가격', '30000');
+    await _enterTextByLabel(tester, '메모', 'Clearance');
+    await tester.tap(find.widgetWithText(FilledButton, '수정 저장'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dailyshot'), findsNothing);
+    expect(find.text('Wine25'), findsOneWidget);
+    expect(find.text('비싸게 삼'), findsOneWidget);
+    expect(find.text('KRW 30,000'), findsWidgets);
 
     final deletePriceButton = find.byTooltip('가격 삭제');
     await tester.ensureVisible(deletePriceButton);
