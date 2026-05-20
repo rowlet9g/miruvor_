@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:miruvor/core/database/app_database.dart';
+import 'package:miruvor/core/models/price_analysis.dart';
 import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
@@ -32,7 +33,11 @@ class PriceCheckPage extends StatelessWidget {
               separatorBuilder: (_, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final item = cellar[index];
-                final reference = _latestReferenceFor(item.wine.id, prices);
+                final observations = _pricesFor(item.wine.id, prices);
+                final analysis = PriceAnalysis(
+                  purchasePrice: item.bottle.purchasePrice,
+                  observations: observations,
+                );
 
                 return Card(
                   child: Padding(
@@ -55,23 +60,36 @@ class PriceCheckPage extends StatelessWidget {
                             Text(formatKrw(item.bottle.purchasePrice)),
                           ],
                         ),
-                        if (reference == null) ...[
+                        if (!analysis.hasMarketData) ...[
                           const SizedBox(height: 12),
-                          const Text('아직 기준가가 없습니다.'),
+                          const Text('아직 가격 관측치가 없습니다.'),
                         ] else ...[
                           const SizedBox(height: 6),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(reference.sourceName),
-                              Text(formatKrw(reference.price)),
+                              const Text('관측치'),
+                              Text('${observations.length}개'),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('최저 / 평균 / 최고'),
+                              Flexible(
+                                child: Text(
+                                  '${formatKrw(analysis.minPrice!)} / '
+                                  '${formatKrw(analysis.averagePrice!)} / '
+                                  '${formatKrw(analysis.maxPrice!)}',
+                                  textAlign: TextAlign.end,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          PriceSpectrum(
-                            purchasePrice: item.bottle.purchasePrice,
-                            referencePrice: reference.price,
-                          ),
+                          PriceSpectrum(analysis: analysis),
                         ],
                       ],
                     ),
@@ -85,15 +103,10 @@ class PriceCheckPage extends StatelessWidget {
     );
   }
 
-  PriceObservation? _latestReferenceFor(
+  List<PriceObservation> _pricesFor(
     String wineId,
     List<PriceObservation> prices,
   ) {
-    for (final price in prices) {
-      if (price.wineId == wineId) {
-        return price;
-      }
-    }
-    return null;
+    return prices.where((price) => price.wineId == wineId).toList();
   }
 }

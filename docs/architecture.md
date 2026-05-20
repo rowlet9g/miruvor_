@@ -68,6 +68,20 @@ Point-in-time reference price.
 - Stock state
 - Note
 
+Manual price observations are now a history, not a single replaceable field.
+The purchase form can still hold one `Manual reference` baseline, but additional
+seller prices entered from the detail screen are preserved when the purchase
+record is edited.
+
+The first purchase judgement is intentionally simple:
+
+- Compare the user's purchase price against the average of observations for the
+  same wine.
+- Mark the bottle as cheap when purchase price is at least 10% below average.
+- Mark it as expensive when purchase price is at least 10% above average.
+- Show minimum, average, and maximum prices beside the spectrum so the judgement
+  remains inspectable.
+
 ## Data-source strategy
 
 Price and review providers should be hidden behind adapters. A future adapter can
@@ -93,7 +107,7 @@ Store source-specific fields inside adapter DTOs or metadata tables.
 4. Add/edit/delete tasting notes
 5. Image picker and local file storage
 6. Search and filters
-7. Manual reference prices
+7. Manual reference prices and price observations
 8. Price alerts
 9. External API adapters
 

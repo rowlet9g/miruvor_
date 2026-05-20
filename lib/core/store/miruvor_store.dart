@@ -38,6 +38,10 @@ class MiruvorStore extends ChangeNotifier {
     return _database.watchPriceObservations();
   }
 
+  Stream<List<PriceObservation>> watchPriceObservationsForWine(String wineId) {
+    return _database.watchPriceObservationsForWine(wineId);
+  }
+
   Future<Wine?> findWine(String id) => _database.findWine(id);
 
   Future<Bottle?> findBottle(String id) => _database.findBottle(id);
@@ -48,6 +52,10 @@ class MiruvorStore extends ChangeNotifier {
 
   Future<PriceObservation?> latestPriceForWine(String wineId) {
     return _database.latestPriceForWine(wineId);
+  }
+
+  Future<PriceObservation?> manualReferenceForWine(String wineId) {
+    return _database.manualReferenceForWine(wineId);
   }
 
   Future<void> addWinePurchase({
@@ -244,6 +252,35 @@ class MiruvorStore extends ChangeNotifier {
 
   Future<void> deleteTastingNote(String id) async {
     await _database.deleteTastingNote(id);
+    notifyListeners();
+  }
+
+  Future<void> addPriceObservation({
+    required String wineId,
+    required String sourceName,
+    required int price,
+    required DateTime observedAt,
+    String? url,
+    String? note,
+    bool? isInStock,
+  }) async {
+    await _database.insertPriceObservation(
+      PriceObservation(
+        id: _uuid.v4(),
+        wineId: wineId,
+        sourceName: sourceName,
+        price: price,
+        observedAt: observedAt,
+        url: url,
+        note: note,
+        isInStock: isInStock,
+      ),
+    );
+    notifyListeners();
+  }
+
+  Future<void> deletePriceObservation(String id) async {
+    await _database.deletePriceObservation(id);
     notifyListeners();
   }
 

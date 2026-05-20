@@ -150,6 +150,14 @@ class AppDatabase extends _$AppDatabase {
         .map((rows) => rows.map(_priceObservationFromRecord).toList());
   }
 
+  Stream<List<PriceObservation>> watchPriceObservationsForWine(String wineId) {
+    return (select(priceObservationRecords)
+          ..where((table) => table.wineId.equals(wineId))
+          ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]))
+        .watch()
+        .map((rows) => rows.map(_priceObservationFromRecord).toList());
+  }
+
   Future<Wine?> findWine(String id) async {
     final row = await (select(wineRecords)
           ..where((table) => table.id.equals(id)))
@@ -175,6 +183,19 @@ class AppDatabase extends _$AppDatabase {
   Future<PriceObservation?> latestPriceForWine(String wineId) async {
     final row = await (select(priceObservationRecords)
           ..where((table) => table.wineId.equals(wineId))
+          ..orderBy([(row) => OrderingTerm.desc(row.observedAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    return row == null ? null : _priceObservationFromRecord(row);
+  }
+
+  Future<PriceObservation?> manualReferenceForWine(String wineId) async {
+    final row = await (select(priceObservationRecords)
+          ..where(
+            (table) =>
+                table.wineId.equals(wineId) &
+                table.sourceName.equals('Manual reference'),
+          )
           ..orderBy([(row) => OrderingTerm.desc(row.observedAt)])
           ..limit(1))
         .getSingleOrNull();
@@ -274,7 +295,11 @@ class AppDatabase extends _$AppDatabase {
       );
 
       await (delete(priceObservationRecords)
-            ..where((table) => table.wineId.equals(wine.id)))
+            ..where(
+              (table) =>
+                  table.wineId.equals(wine.id) &
+                  table.sourceName.equals('Manual reference'),
+            ))
           .go();
 
       if (referencePrice != null) {
@@ -365,6 +390,30 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteTastingNote(String id) {
     return (delete(tastingNoteRecords)..where((table) => table.id.equals(id)))
+        .go();
+  }
+
+  Future<void> insertPriceObservation(PriceObservation observation) {
+    final now = DateTime.now();
+
+    return into(priceObservationRecords).insert(
+      PriceObservationRecordsCompanion.insert(
+        id: observation.id,
+        wineId: observation.wineId,
+        sourceName: observation.sourceName,
+        price: observation.price,
+        observedAt: observation.observedAt,
+        url: Value(observation.url),
+        note: Value(observation.note),
+        isInStock: Value(observation.isInStock),
+        createdAt: now,
+      ),
+    );
+  }
+
+  Future<void> deletePriceObservation(String id) {
+    return (delete(priceObservationRecords)
+          ..where((table) => table.id.equals(id)))
         .go();
   }
 

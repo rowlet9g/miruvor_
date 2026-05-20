@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:miruvor/core/models/price_analysis.dart';
+import 'package:miruvor/core/utils/formatters.dart';
 
 class PriceSpectrum extends StatelessWidget {
   const PriceSpectrum({
-    required this.purchasePrice,
-    required this.referencePrice,
+    required this.analysis,
     super.key,
   });
 
-  final int purchasePrice;
-  final int referencePrice;
+  final PriceAnalysis analysis;
 
   @override
   Widget build(BuildContext context) {
-    final ratio = referencePrice == 0 ? 1.0 : purchasePrice / referencePrice;
+    final ratio = analysis.ratioToAverage ?? 1.0;
     final position = ((ratio - 0.7) / 0.6).clamp(0.0, 1.0);
-    final label = _labelForRatio(ratio);
+    final averagePrice = analysis.averagePrice;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,9 +28,16 @@ class PriceSpectrum extends StatelessWidget {
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
-            Text(label),
+            Text(analysis.judgement.label),
           ],
         ),
+        if (averagePrice != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            '평균가 ${formatKrw(averagePrice)} 대비 ${(ratio * 100).round()}%',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -73,19 +80,9 @@ class PriceSpectrum extends StatelessWidget {
         const SizedBox(height: 8),
         const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Text('저렴'), Text('보통'), Text('높음')],
+          children: [Text('청: 저렴'), Text('적정'), Text('적: 높음')],
         ),
       ],
     );
-  }
-
-  String _labelForRatio(double ratio) {
-    if (ratio <= 0.9) {
-      return '기준가 대비 저렴';
-    }
-    if (ratio >= 1.1) {
-      return '기준가 대비 높음';
-    }
-    return '기준가 근처';
   }
 }
