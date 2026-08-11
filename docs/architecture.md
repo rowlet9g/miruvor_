@@ -39,6 +39,11 @@ Images are copied into the app documents directory before their paths are saved.
 Database rows should not point at picker cache files because those files may be
 removed by the platform.
 
+Image lifecycle follows database ownership. Replacing or removing a photo cleans
+up the previous managed file after the database write succeeds. Deleting a wine
+also removes the bottle and tasting-note images it owns. If a database write
+fails after a new image was imported, the new managed file is discarded.
+
 Deleting the current 1:1 wine purchase record removes its bottle, manual price
 observations, and tasting notes. This is intentionally conservative until the
 app supports multiple bottles pointing at the same canonical wine.

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:miruvor/core/media/local_image_store.dart';
 import 'package:miruvor/core/models/bottle.dart';
 import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
+import 'package:miruvor/core/store/miruvor_store.dart';
 import 'package:miruvor/features/shared/presentation/date_picker_field.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
@@ -36,7 +36,6 @@ class _AddWinePageState extends State<AddWinePage> {
   final _storageLocationController = TextEditingController();
   final _purchasePriceController = TextEditingController();
   final _referencePriceController = TextEditingController();
-  final _imageStore = LocalImageStore();
 
   WineType _type = WineType.red;
   DateTime _purchaseDate = DateTime.now();
@@ -225,9 +224,13 @@ class _AddWinePageState extends State<AddWinePage> {
 
     setState(() => _isSaving = true);
     final store = MiruvorScope.of(context);
+    String? importedImagePath;
 
     try {
-      final storedImagePath = await _storedImagePath();
+      final storedImagePath = await _storedImagePath(store);
+      if (_selectedImagePath != widget.initialBottle?.imagePath) {
+        importedImagePath = storedImagePath;
+      }
       final referencePrice = _nullableInt(_referencePriceController);
       final grapeVarieties = _grapeVarietiesController.text
           .split(',')
@@ -272,6 +275,7 @@ class _AddWinePageState extends State<AddWinePage> {
         );
       }
     } catch (_) {
+      await store.discardImage(importedImagePath);
       if (!mounted) {
         return;
       }
@@ -290,7 +294,7 @@ class _AddWinePageState extends State<AddWinePage> {
     Navigator.of(context).pop(true);
   }
 
-  Future<String?> _storedImagePath() async {
+  Future<String?> _storedImagePath(MiruvorStore store) async {
     if (_selectedImagePath == null) {
       return null;
     }
@@ -298,7 +302,7 @@ class _AddWinePageState extends State<AddWinePage> {
       return _selectedImagePath;
     }
 
-    return _imageStore.copyIntoAppStorage(
+    return store.importImage(
       _selectedImagePath!,
       prefix: 'bottle',
     );

@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:miruvor/core/media/local_image_store.dart';
 import 'package:miruvor/core/models/tasting_note.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
+import 'package:miruvor/core/store/miruvor_store.dart';
 import 'package:miruvor/core/utils/formatters.dart';
 import 'package:miruvor/features/shared/presentation/date_picker_field.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
@@ -200,7 +200,6 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
   final _palateController = TextEditingController();
   final _memoController = TextEditingController();
   final _ratingController = TextEditingController(text: '4.0');
-  final _imageStore = LocalImageStore();
 
   DateTime _tastedAt = DateTime.now();
   String? _wineId;
@@ -350,9 +349,13 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
 
     setState(() => _isSaving = true);
     final store = MiruvorScope.of(context);
+    String? importedImagePath;
 
     try {
-      final storedImagePath = await _storedImagePath();
+      final storedImagePath = await _storedImagePath(store);
+      if (_selectedImagePath != widget.initialNote?.imagePath) {
+        importedImagePath = storedImagePath;
+      }
       if (_isEditing) {
         await store.updateTastingNote(
           id: widget.initialNote!.id,
@@ -379,6 +382,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
         );
       }
     } catch (_) {
+      await store.discardImage(importedImagePath);
       if (!mounted) {
         return;
       }
@@ -397,7 +401,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
     Navigator.of(context).pop();
   }
 
-  Future<String?> _storedImagePath() async {
+  Future<String?> _storedImagePath(MiruvorStore store) async {
     if (_selectedImagePath == null) {
       return null;
     }
@@ -405,7 +409,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
       return _selectedImagePath;
     }
 
-    return _imageStore.copyIntoAppStorage(
+    return store.importImage(
       _selectedImagePath!,
       prefix: 'tasting-note',
     );

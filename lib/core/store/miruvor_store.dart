@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:miruvor/core/database/app_database.dart';
+import 'package:miruvor/core/media/local_image_store.dart';
 import 'package:miruvor/core/models/bottle.dart';
 import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/models/tasting_note.dart';
@@ -11,9 +12,12 @@ import 'package:uuid/uuid.dart';
 class MiruvorStore extends ChangeNotifier {
   MiruvorStore({
     required AppDatabase database,
-  }) : _database = database;
+    ImageStore? imageStore,
+  })  : _database = database,
+        _imageStore = imageStore ?? LocalImageStore();
 
   final AppDatabase _database;
+  final ImageStore _imageStore;
   final _uuid = const Uuid();
 
   AppDatabase get database => _database;
@@ -46,6 +50,10 @@ class MiruvorStore extends ChangeNotifier {
 
   Future<Bottle?> findBottle(String id) => _database.findBottle(id);
 
+  Future<TastingNote?> findTastingNote(String id) {
+    return _database.findTastingNote(id);
+  }
+
   Future<List<TastingNote>> notesForWine(String wineId) {
     return _database.notesForWine(wineId);
   }
@@ -56,6 +64,17 @@ class MiruvorStore extends ChangeNotifier {
 
   Future<PriceObservation?> manualReferenceForWine(String wineId) {
     return _database.manualReferenceForWine(wineId);
+  }
+
+  Future<String> importImage(
+    String sourcePath, {
+    required String prefix,
+  }) {
+    return _imageStore.copyIntoAppStorage(sourcePath, prefix: prefix);
+  }
+
+  Future<void> discardImage(String? imagePath) {
+    return _deleteManagedImages([imagePath]);
   }
 
   Future<void> addWinePurchase({
@@ -130,6 +149,7 @@ class MiruvorStore extends ChangeNotifier {
     bool isConsumed = false,
     int? referencePrice,
   }) async {
+    final previousBottle = await _database.findBottle(bottleId);
     final wine = Wine(
       id: wineId,
       name: name,
@@ -166,6 +186,9 @@ class MiruvorStore extends ChangeNotifier {
       bottle: bottle,
       referencePrice: price,
     );
+    if (previousBottle?.imagePath != imagePath) {
+      await _deleteManagedImages([previousBottle?.imagePath]);
+    }
     notifyListeners();
   }
 
@@ -173,7 +196,13 @@ class MiruvorStore extends ChangeNotifier {
     required String wineId,
     required String bottleId,
   }) async {
+    final bottle = await _database.findBottle(bottleId);
+    final notes = await _database.notesForWine(wineId);
     await _database.deleteWinePurchase(wineId: wineId, bottleId: bottleId);
+    await _deleteManagedImages([
+      bottle?.imagePath,
+      ...notes.map((note) => note.imagePath),
+    ]);
     notifyListeners();
   }
 
@@ -229,6 +258,7 @@ class MiruvorStore extends ChangeNotifier {
     int? sweetness,
     String? memo,
   }) async {
+    final previousNote = await _database.findTastingNote(id);
     await _database.updateTastingNote(
       TastingNote(
         id: id,
@@ -247,11 +277,16 @@ class MiruvorStore extends ChangeNotifier {
         memo: memo,
       ),
     );
+    if (previousNote?.imagePath != imagePath) {
+      await _deleteManagedImages([previousNote?.imagePath]);
+    }
     notifyListeners();
   }
 
   Future<void> deleteTastingNote(String id) async {
+    final note = await _database.findTastingNote(id);
     await _database.deleteTastingNote(id);
+    await _deleteManagedImages([note?.imagePath]);
     notifyListeners();
   }
 
@@ -307,6 +342,16 @@ class MiruvorStore extends ChangeNotifier {
   Future<void> deletePriceObservation(String id) async {
     await _database.deletePriceObservation(id);
     notifyListeners();
+  }
+
+  Future<void> _deleteManagedImages(Iterable<String?> imagePaths) async {
+    for (final imagePath in imagePaths.whereType<String>().toSet()) {
+      try {
+        await _imageStore.deleteManagedFile(imagePath);
+      } catch (error) {
+        debugPrint('Failed to delete managed image $imagePath: $error');
+      }
+    }
   }
 
   @override

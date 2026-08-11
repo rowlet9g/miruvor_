@@ -172,6 +172,13 @@ class AppDatabase extends _$AppDatabase {
     return row == null ? null : _bottleFromRecord(row);
   }
 
+  Future<TastingNote?> findTastingNote(String id) async {
+    final row = await (select(tastingNoteRecords)
+          ..where((table) => table.id.equals(id)))
+        .getSingleOrNull();
+    return row == null ? null : _tastingNoteFromRecord(row);
+  }
+
   Future<List<TastingNote>> notesForWine(String wineId) async {
     final rows = await (select(tastingNoteRecords)
           ..where((table) => table.wineId.equals(wineId))
