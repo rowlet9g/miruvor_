@@ -92,12 +92,19 @@ class PriceObservationRecords extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
-  AppDatabase.inMemory() : super(NativeDatabase.memory());
+  AppDatabase.inMemory() : this(NativeDatabase.memory());
 
   @override
   int get schemaVersion => 1;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        beforeOpen: (_) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
+      );
 
   Future<List<WineWithBottle>> watchCellarSnapshotOnce() async {
     final rows = await (select(bottleRecords).join([

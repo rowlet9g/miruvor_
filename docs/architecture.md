@@ -125,3 +125,21 @@ The first search/filter pass is intentionally app-side filtering over live Drift
 streams. This keeps the UI behavior simple while the local dataset is small. If
 the cellar grows large, move the same `WineFilter` contract into SQL-backed
 queries without changing the presentation widgets.
+
+## Database migrations
+
+Drift schema snapshots are stored under `drift_schemas/app_database`. The
+database is registered in `build.yaml`, and its constructor accepts a custom
+`QueryExecutor` so generated migration tests can open historical schemas.
+
+For every schema change:
+
+1. Change the table definitions and increment `schemaVersion` together.
+2. Run `dart run drift_dev make-migrations`.
+3. Implement each generated step in `app_database.steps.dart` and connect it to
+   `MigrationStrategy.onUpgrade`.
+4. Add a data-preservation test when a migration transforms or removes data.
+5. Run `flutter analyze` and `flutter test` before committing the new snapshot.
+
+Foreign-key enforcement is enabled in `MigrationStrategy.beforeOpen`. A fresh
+database test validates both the generated schema and the connection pragma.
