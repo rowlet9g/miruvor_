@@ -6,42 +6,45 @@ class PriceAnalysis {
     required this.observations,
   });
 
-  final int purchasePrice;
+  final num? purchasePrice;
   final List<PriceObservation> observations;
 
-  bool get hasMarketData => observations.isNotEmpty;
+  List<PriceObservation> get _eligible =>
+      observations.where((p) => p.price > 0).toList();
+
+  bool get hasMarketData => _eligible.isNotEmpty;
 
   int? get minPrice {
-    if (observations.isEmpty) {
+    if (_eligible.isEmpty) {
       return null;
     }
-    return observations.map((price) => price.price).reduce(_min);
+    return _eligible.map((price) => price.price).reduce(_min);
   }
 
   int? get maxPrice {
-    if (observations.isEmpty) {
+    if (_eligible.isEmpty) {
       return null;
     }
-    return observations.map((price) => price.price).reduce(_max);
+    return _eligible.map((price) => price.price).reduce(_max);
   }
 
   int? get averagePrice {
-    if (observations.isEmpty) {
+    if (_eligible.isEmpty) {
       return null;
     }
-    final total = observations.fold<int>(
+    final total = _eligible.fold<int>(
       0,
       (sum, observation) => sum + observation.price,
     );
-    return (total / observations.length).round();
+    return (total / _eligible.length).round();
   }
 
   double? get ratioToAverage {
     final average = averagePrice;
-    if (average == null || average == 0) {
+    if (average == null || average == 0 || purchasePrice == null) {
       return null;
     }
-    return purchasePrice / average;
+    return purchasePrice! / average;
   }
 
   PriceJudgement get judgement {
@@ -64,7 +67,7 @@ class PriceAnalysis {
 }
 
 enum PriceJudgement {
-  unknown('시장가 없음'),
+  unknown('비교 자료 없음'),
   good('싸게 삼'),
   fair('적정가'),
   expensive('비싸게 삼');

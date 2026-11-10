@@ -33,7 +33,7 @@ class TastingNotesPage extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (context) => const _AddTastingNotePage(),
+                      builder: (context) => const AddTastingNotePage(),
                     ),
                   );
                 },
@@ -76,7 +76,7 @@ class _TastingNoteListCard extends StatelessWidget {
                       child: Text(
                         wine == null
                             ? '알 수 없는 와인'
-                            : '${wine.name} ${wine.displayVintage}',
+                            : '${wine.displayName} ${wine.displayVintage}',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
@@ -110,7 +110,7 @@ class _TastingNoteListCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
+                  '${formatDate(note.tastedAt)} · ${note.displayRating}',
                 ),
                 if (note.imagePath != null) ...[
                   const SizedBox(height: 12),
@@ -128,6 +128,7 @@ class _TastingNoteListCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
+                if (note.memo != null) Text(note.memo!),
                 if (note.aroma != null) Text('Aroma: ${note.aroma}'),
                 if (note.palate != null) ...[
                   const SizedBox(height: 6),
@@ -148,7 +149,7 @@ class _TastingNoteListCard extends StatelessWidget {
   Future<void> _editNote(BuildContext context) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (context) => _AddTastingNotePage(initialNote: note),
+        builder: (context) => AddTastingNotePage(initialNote: note),
       ),
     );
   }
@@ -184,24 +185,25 @@ class _TastingNoteListCard extends StatelessWidget {
 
 enum _TastingNoteAction { edit, delete }
 
-class _AddTastingNotePage extends StatefulWidget {
-  const _AddTastingNotePage({this.initialNote});
+class AddTastingNotePage extends StatefulWidget {
+  const AddTastingNotePage({this.initialNote, this.initialWineId, super.key});
 
   final TastingNote? initialNote;
+  final String? initialWineId;
 
   @override
-  State<_AddTastingNotePage> createState() => _AddTastingNotePageState();
+  State<AddTastingNotePage> createState() => AddTastingNotePageState();
 }
 
-class _AddTastingNotePageState extends State<_AddTastingNotePage> {
+class AddTastingNotePageState extends State<AddTastingNotePage> {
   final _formKey = GlobalKey<FormState>();
   final _pairingController = TextEditingController();
   final _aromaController = TextEditingController();
   final _palateController = TextEditingController();
   final _memoController = TextEditingController();
-  final _ratingController = TextEditingController(text: '4.0');
+  final _ratingController = TextEditingController();
 
-  DateTime _tastedAt = DateTime.now();
+  DateTime? _tastedAt;
   String? _wineId;
   String? _selectedImagePath;
   bool _isSaving = false;
@@ -211,12 +213,13 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
   void initState() {
     super.initState();
 
+    _wineId = widget.initialWineId;
     final note = widget.initialNote;
     if (note != null) {
       _wineId = note.wineId;
       _tastedAt = note.tastedAt;
       _selectedImagePath = note.imagePath;
-      _ratingController.text = note.rating.toStringAsFixed(1);
+      _ratingController.text = note.rating?.toStringAsFixed(1) ?? '';
       _pairingController.text = note.pairing ?? '';
       _aromaController.text = note.aroma ?? '';
       _palateController.text = note.palate ?? '';
@@ -272,7 +275,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
                   items: wines.map((wine) {
                     return DropdownMenuItem(
                       value: wine.id,
-                      child: Text('${wine.name} ${wine.displayVintage}'),
+                      child: Text('${wine.displayName} ${wine.displayVintage}'),
                     );
                   }).toList(),
                   onChanged: _isEditing
@@ -361,8 +364,13 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
           id: widget.initialNote!.id,
           wineId: widget.initialNote!.wineId,
           bottleId: widget.initialNote!.bottleId,
+          acidity: widget.initialNote!.acidity,
+          tannin: widget.initialNote!.tannin,
+          body: widget.initialNote!.body,
+          sweetness: widget.initialNote!.sweetness,
+          buyAgain: widget.initialNote!.buyAgain,
           tastedAt: _tastedAt,
-          rating: double.parse(_ratingController.text.trim()),
+          rating: double.tryParse(_ratingController.text.trim()),
           pairing: _nullableText(_pairingController),
           aroma: _nullableText(_aromaController),
           palate: _nullableText(_palateController),
@@ -373,7 +381,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
         await store.addTastingNote(
           wineId: _wineId!,
           tastedAt: _tastedAt,
-          rating: double.parse(_ratingController.text.trim()),
+          rating: double.tryParse(_ratingController.text.trim()),
           pairing: _nullableText(_pairingController),
           aroma: _nullableText(_aromaController),
           palate: _nullableText(_palateController),
@@ -381,7 +389,7 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
           imagePath: storedImagePath,
         );
       }
-    } catch (_) {
+    } catch (error) {
       await store.discardImage(importedImagePath);
       if (!mounted) {
         return;
@@ -389,7 +397,10 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
 
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장에 실패했습니다.')),
+        SnackBar(
+            content: Text(error is ArgumentError
+                ? error.message.toString()
+                : '저장에 실패했습니다.')),
       );
       return;
     }
@@ -417,10 +428,10 @@ class _AddTastingNotePageState extends State<_AddTastingNotePage> {
 
   String? _ratingValidator(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return '필수 입력값입니다.';
+      return null;
     }
     final rating = double.tryParse(value.trim());
-    if (rating == null || rating < 0 || rating > 5) {
+    if (rating == null || !rating.isFinite || rating < 0 || rating > 5) {
       return '0부터 5 사이 숫자로 입력해 주세요.';
     }
     return null;

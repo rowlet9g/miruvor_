@@ -21,6 +21,7 @@ class _CellarPageState extends State<CellarPage> {
   final _maxPriceController = TextEditingController();
 
   WineType? _selectedType;
+  bool _archived = false;
 
   WineFilter get _filter {
     return WineFilter(
@@ -46,14 +47,23 @@ class _CellarPageState extends State<CellarPage> {
     final store = MiruvorScope.of(context);
     final filter = _filter;
 
-    return StreamBuilder<List<WineWithBottle>>(
-      stream: store.watchCellar(filter: filter),
+    return StreamBuilder<List<WineEntry>>(
+      stream: store.watchCatalog(filter: filter, archived: _archived),
       builder: (context, snapshot) {
-        final cellar = snapshot.data ?? const <WineWithBottle>[];
+        if (snapshot.hasError) {
+          return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('기록을 열지 못했습니다. ${snapshot.error}'));
+        }
+        final cellar = snapshot.data ?? const <WineEntry>[];
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
+            SwitchListTile(
+                title: const Text('보관한 와인 보기'),
+                value: _archived,
+                onChanged: (v) => setState(() => _archived = v)),
             WineFilterPanel(
               queryController: _queryController,
               countryController: _countryController,
@@ -74,14 +84,13 @@ class _CellarPageState extends State<CellarPage> {
               for (final item in cellar) ...[
                 WineCard(
                   wine: item.wine,
-                  bottle: item.bottle,
+                  bottle: item.bottles.isEmpty ? null : item.bottles.first,
+                  purchasePrice: item.latestUnitPrice,
+                  stockCount: item.stockCount,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (context) => WineDetailPage(
-                          wine: item.wine,
-                          bottle: item.bottle,
-                        ),
+                        builder: (context) => WineDetailPage(wine: item.wine),
                       ),
                     );
                   },

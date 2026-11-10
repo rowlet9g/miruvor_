@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:miruvor/core/database/app_database.dart';
 import 'package:miruvor/core/models/bottle.dart';
+import 'package:miruvor/core/models/purchase.dart';
 import 'package:miruvor/core/models/price_analysis.dart';
 import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/models/tasting_note.dart';
@@ -9,214 +11,306 @@ import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
 import 'package:miruvor/features/cellar/presentation/add_wine_page.dart';
+import 'package:miruvor/features/cellar/presentation/bottle_page.dart';
+import 'package:miruvor/features/cellar/presentation/purchase_page.dart';
+import 'package:miruvor/features/tasting_notes/presentation/tasting_notes_page.dart';
 import 'package:miruvor/features/price_check/presentation/price_spectrum.dart';
 import 'package:miruvor/features/shared/presentation/section_title.dart';
 
 class WineDetailPage extends StatelessWidget {
-  const WineDetailPage({required this.wine, required this.bottle, super.key});
-
+  const WineDetailPage({required this.wine, super.key});
   final Wine wine;
-  final Bottle bottle;
 
   @override
   Widget build(BuildContext context) {
     final store = MiruvorScope.of(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Wine Detail'),
-        actions: [
-          IconButton(
-            tooltip: '수정',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _editWine(context),
-          ),
-          IconButton(
-            tooltip: '삭제',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _deleteWine(context),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          _HeroBottle(wine: wine, bottle: bottle),
-          const SizedBox(height: 20),
-          const SectionTitle(title: '구매 정보'),
-          const SizedBox(height: 12),
-          _InfoCard(
-            rows: [
-              _InfoRow('구매일', formatDate(bottle.purchaseDate)),
-              _InfoRow('구매처', bottle.shopName ?? '-'),
-              _InfoRow('구매가', formatKrw(bottle.purchasePrice)),
-              _InfoRow('보관', bottle.storageLocation ?? '-'),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const SectionTitle(title: '가격 판단'),
-              TextButton.icon(
-                icon: const Icon(Icons.add_chart_outlined),
-                label: const Text('가격 추가'),
-                onPressed: () => _addPriceObservation(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          StreamBuilder<List<PriceObservation>>(
-            stream: store.watchPriceObservationsForWine(wine.id),
-            builder: (context, snapshot) {
-              final observations = snapshot.data ?? const <PriceObservation>[];
-              final analysis = PriceAnalysis(
-                purchasePrice: bottle.purchasePrice,
-                observations: observations,
-              );
-
-              if (observations.isEmpty) {
-                return const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('아직 가격 관측치가 없습니다. 판매처 가격을 추가해 보세요.'),
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
+    return StreamBuilder<List<WineEntry>>(
+      stream: store.database.watchCatalog(),
+      builder: (context, snapshot) {
+        WineEntry? entry;
+        for (final item in snapshot.data ?? <WineEntry>[]) {
+          if (item.wine.id == wine.id) entry = item;
+        }
+        if (entry == null) {
+          return Scaffold(
+              appBar: AppBar(title: const Text('Wine Detail')),
+              body: Center(
+                  child: Text(snapshot.hasError
+                      ? '기록을 열지 못했습니다.'
+                      : snapshot.hasData
+                          ? '와인 기록이 없습니다.'
+                          : '불러오는 중')));
+        }
+        final current = entry;
+        final currentWine = current.wine;
+        return Scaffold(
+          appBar: AppBar(title: const Text('Wine Detail'), actions: [
+            IconButton(
+                tooltip: '와인 정보 수정',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () =>
+                    _open(context, AddWinePage(initialWine: currentWine))),
+            IconButton(
+                tooltip: '와인 전체 영구 삭제',
+                icon: const Icon(Icons.delete_forever_outlined),
+                onPressed: () => _deleteWine(context)),
+          ]),
+          body: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                _HeroBottle(
+                    wine: currentWine,
+                    bottle:
+                        current.bottles.isEmpty ? null : current.bottles.first),
+                const SizedBox(height: 12),
+                Text(
+                    '보유 ${current.stockCount}병 · 구매 ${current.purchases.length}건'),
+                Wrap(spacing: 8, children: [
+                  TextButton.icon(
+                      icon: const Icon(Icons.shopping_bag_outlined),
+                      label: const Text('구매 추가'),
+                      onPressed: () =>
+                          _open(context, PurchasePage(wine: currentWine))),
+                  TextButton.icon(
+                      icon: const Icon(Icons.card_giftcard),
+                      label: const Text('구매 없이 병 추가'),
+                      onPressed: () =>
+                          _open(context, BottlePage(wine: currentWine))),
+                  TextButton.icon(
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('시음 추가'),
+                      onPressed: () => _open(context,
+                          AddTastingNotePage(initialWineId: currentWine.id))),
+                  TextButton(
+                      onPressed: current.stockCount > 0
+                          ? null
+                          : () => _perform(
+                              context,
+                              () => store.setArchived(
+                                  currentWine.id, !currentWine.isArchived)),
+                      child: Text(currentWine.isArchived ? '보관 해제' : '와인 보관')),
+                ]),
+                const SizedBox(height: 12),
+                const SectionTitle(title: '구매 이력'),
+                if (current.purchases.isEmpty)
+                  const Padding(
+                      padding: EdgeInsets.all(12), child: Text('구매 기록 없음')),
+                for (final purchase in current.purchases)
                   Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PriceSpectrum(analysis: analysis),
-                          const SizedBox(height: 16),
-                          _InfoRows(
-                            rows: [
-                              _InfoRow('관측치', '${observations.length}개'),
-                              _InfoRow('최저가', formatKrw(analysis.minPrice!)),
-                              _InfoRow(
-                                  '평균가', formatKrw(analysis.averagePrice!)),
-                              _InfoRow('최고가', formatKrw(analysis.maxPrice!)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  for (final observation in observations) ...[
-                    _PriceObservationCard(observation: observation),
-                    const SizedBox(height: 12),
-                  ],
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          const SectionTitle(title: '테이스팅 노트'),
-          const SizedBox(height: 12),
-          FutureBuilder<List<TastingNote>>(
-            future: store.notesForWine(wine.id),
-            builder: (context, snapshot) {
-              final notes = snapshot.data ?? const <TastingNote>[];
-              if (notes.isEmpty) {
-                return const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('아직 작성된 테이스팅 노트가 없습니다.'),
-                  ),
-                );
-              }
-
-              return Column(
-                children: [
-                  for (final note in notes)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TastingNoteCard(note: note),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
+                      key: ValueKey('purchase-${purchase.id}'),
+                      child: ListTile(
+                        title: Text(
+                            '${purchase.purchasedQuantity}병 · 총액 ${formatKrw(purchase.totalPaidKrw)}'),
+                        subtitle: Text(
+                            '${formatDate(purchase.purchaseDate)} · ${purchase.shopName ?? '구매처 미상'}\n'
+                            '병당 ${formatKrw(purchase.unitPrice)} · ${purchase.volumeMl == null ? '용량 미상' : '${purchase.volumeMl}mL'}'
+                            '${purchase.note == null ? '' : '\n${purchase.note}'}'),
+                        isThreeLine: true,
+                        trailing:
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                              tooltip: '구매 수정',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: () => _open(
+                                  context,
+                                  PurchasePage(
+                                      wine: currentWine,
+                                      initialPurchase: purchase))),
+                          IconButton(
+                              tooltip: '구매 삭제',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () =>
+                                  _deletePurchase(context, purchase)),
+                        ]),
+                      )),
+                const SizedBox(height: 12),
+                ExpansionTile(
+                    title: Text('병 기록 ${current.bottles.length}개'),
+                    children: [
+                      if (current.bottles.isEmpty)
+                        const ListTile(title: Text('병 기록 없음')),
+                      for (var index = 0;
+                          index < current.bottles.length;
+                          index++)
+                        _bottleTile(context, currentWine,
+                            current.bottles[index], index + 1),
+                    ]),
+                const SizedBox(height: 12),
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SectionTitle(title: '가격 판단'),
+                      TextButton.icon(
+                          icon: const Icon(Icons.add_chart_outlined),
+                          label: const Text('가격 추가'),
+                          onPressed: () => showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              builder: (_) =>
+                                  _PriceObservationSheet(wineId: wine.id))),
+                    ]),
+                StreamBuilder<List<PriceObservation>>(
+                  stream: store.watchPriceObservationsForWine(wine.id),
+                  builder: (context, snapshot) {
+                    final observations = snapshot.data ?? <PriceObservation>[];
+                    final analysis = PriceAnalysis(
+                        purchasePrice: current.latestUnitPrice,
+                        observations: observations);
+                    if (observations.isEmpty) {
+                      return const Card(
+                          child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child:
+                                  Text('아직 가격 관측치가 없습니다. 판매처 가격을 추가해 보세요.')));
+                    }
+                    return Column(children: [
+                      if (analysis.hasMarketData)
+                        Card(
+                            child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(children: [
+                                  const Text('최근 구매 병당가 기준'),
+                                  PriceSpectrum(analysis: analysis),
+                                  _InfoRows(rows: [
+                                    _InfoRow(
+                                        '최저가', formatKrw(analysis.minPrice)),
+                                    _InfoRow('평균가',
+                                        formatKrw(analysis.averagePrice)),
+                                    _InfoRow(
+                                        '최고가', formatKrw(analysis.maxPrice)),
+                                  ]),
+                                ]))),
+                      if (observations.any((o) => o.price == 0))
+                        const Text('기존 0원 관측치는 비교에서 제외됩니다. 가격을 정정해 주세요.'),
+                      for (final observation in observations)
+                        _PriceObservationCard(observation: observation),
+                    ]);
+                  },
+                ),
+                const SizedBox(height: 20),
+                const SectionTitle(title: '테이스팅 노트'),
+                StreamBuilder<List<TastingNote>>(
+                  stream: store.watchTastingNotes(),
+                  builder: (context, snapshot) {
+                    final notes = (snapshot.data ?? <TastingNote>[])
+                        .where((n) => n.wineId == wine.id)
+                        .toList();
+                    if (notes.isEmpty) {
+                      return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('아직 작성된 테이스팅 노트가 없습니다.'));
+                    }
+                    return Column(children: [
+                      for (final note in notes) _TastingNoteCard(note: note)
+                    ]);
+                  },
+                ),
+              ]),
+        );
+      },
     );
   }
 
-  Future<void> _editWine(BuildContext context) async {
-    final store = MiruvorScope.of(context);
-    final reference = await store.manualReferenceForWine(wine.id);
-    if (!context.mounted) {
+  Widget _bottleTile(
+          BuildContext context, Wine current, Bottle bottle, int number) =>
+      ListTile(
+        key: ValueKey('bottle-${bottle.id}'),
+        title: Text('병 $number · ${bottle.status.label}'),
+        subtitle: Text('${bottle.purchaseId == null ? '구매 연결 없음' : '구매 연결됨'} · '
+            '${bottle.storageLocation ?? '보관 위치 미상'}'),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+          IconButton(
+              tooltip: '병 수정',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => _open(
+                  context, BottlePage(wine: current, initialBottle: bottle))),
+          IconButton(
+              tooltip: '병 기록 삭제',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () async {
+                if (!await _confirm(context, '병 기록 삭제',
+                    '오등록한 병만 삭제합니다. 연결된 시음 노트와 구매 이력은 유지됩니다.\n마심·선물·반품은 병 상태를 변경해 주세요.')) {
+                  return;
+                }
+                if (context.mounted) {
+                  await _perform(context,
+                      () => MiruvorScope.of(context).deleteBottle(bottle.id));
+                }
+              }),
+        ]),
+      );
+
+  Future<void> _open(BuildContext context, Widget page) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+
+  Future<void> _deletePurchase(BuildContext context, Purchase purchase) async {
+    if (!await _confirm(context, '구매 기록 삭제',
+        '이 구매의 날짜·구매처·수량·금액을 삭제합니다. 병과 보유 수량, 시음 노트, 참고 가격은 유지됩니다.')) {
       return;
     }
-
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (context) => AddWinePage(
-          initialWine: wine,
-          initialBottle: bottle,
-          initialReferencePrice: reference,
-        ),
-      ),
-    );
-
-    if (saved == true && context.mounted) {
-      Navigator.of(context).pop();
+    if (context.mounted) {
+      await _perform(
+          context, () => MiruvorScope.of(context).deletePurchase(purchase.id));
     }
   }
 
   Future<void> _deleteWine(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('와인 삭제'),
-          content: const Text('이 구매 기록과 연결된 가격 정보, 테이스팅 노트가 함께 삭제됩니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('삭제'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true || !context.mounted) {
-      return;
-    }
-
     final store = MiruvorScope.of(context);
-    await store.deleteWinePurchase(wineId: wine.id, bottleId: bottle.id);
-
-    if (context.mounted) {
-      Navigator.of(context).pop();
-    }
+    final impact = await store.previewWineDeletion(wine.id);
+    if (!context.mounted) return;
+    final confirmed = await _confirm(
+        context,
+        '와인 전체 영구 삭제',
+        '이 와인과 구매 ${impact.purchases}건, 병 ${impact.bottles}개, 시음 노트 ${impact.notes}건, '
+            '참고 가격 ${impact.prices}건을 모두 삭제합니다.\n'
+            '다른 기록에서 참조하지 않는 사진 ${impact.unreferencedImages.length}개도 정리합니다.\n'
+            '이 동작은 되돌릴 수 없습니다.');
+    if (!confirmed || !context.mounted) return;
+    final success = await _perform(
+        context, () => store.deleteWine(wine.id, expected: impact));
+    if (success && context.mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _addPriceObservation(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => _PriceObservationSheet(wineId: wine.id),
-    );
+  Future<bool> _confirm(
+          BuildContext context, String title, String message) async =>
+      await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+                title: Text(title),
+                content: Text(message),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('취소')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('삭제')),
+                ],
+              )) ??
+      false;
+
+  Future<bool> _perform(
+      BuildContext context, Future<void> Function() action) async {
+    try {
+      await action();
+      return true;
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(error is StateError
+                ? error.message.toString()
+                : '작업하지 못했습니다. 기록을 다시 확인해 주세요.')));
+      }
+      return false;
+    }
   }
 }
 
 class _HeroBottle extends StatelessWidget {
-  const _HeroBottle({required this.wine, required this.bottle});
+  const _HeroBottle({required this.wine, this.bottle});
 
   final Wine wine;
-  final Bottle bottle;
+  final Bottle? bottle;
 
   @override
   Widget build(BuildContext context) {
@@ -235,10 +329,10 @@ class _HeroBottle extends StatelessWidget {
               child: SizedBox(
                 width: 72,
                 height: 104,
-                child: bottle.imagePath == null
+                child: (wine.imagePath ?? bottle?.imagePath) == null
                     ? _FallbackBottleIcon()
                     : Image.file(
-                        File(bottle.imagePath!),
+                        File((wine.imagePath ?? bottle?.imagePath)!),
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           return _FallbackBottleIcon();
@@ -252,13 +346,13 @@ class _HeroBottle extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${wine.name} ${wine.displayVintage}',
+                    '${wine.displayName} ${wine.displayVintage}',
                     style: textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(wine.producer),
+                  Text(wine.producer ?? '생산자 미상'),
                   const SizedBox(height: 8),
                   Text('${wine.country} · ${wine.region ?? '-'}'),
                   const SizedBox(height: 8),
@@ -303,7 +397,7 @@ class _TastingNoteCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
+              '${formatDate(note.tastedAt)} · ${note.displayRating}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
             if (note.imagePath != null) ...[
@@ -321,6 +415,7 @@ class _TastingNoteCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (note.memo != null) Text(note.memo!),
             if (note.aroma != null) ...[
               const SizedBox(height: 8),
               Text('Aroma: ${note.aroma}'),
@@ -522,31 +617,37 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
     setState(() => _isSaving = true);
     final store = MiruvorScope.of(context);
 
-    final initialObservation = widget.initialObservation;
-    if (initialObservation == null) {
-      await store.addPriceObservation(
-        wineId: widget.wineId,
-        sourceName: _sourceController.text.trim(),
-        price: int.parse(_priceController.text.trim()),
-        observedAt: DateTime.now(),
-        url: _nullableText(_urlController),
-        note: _nullableText(_noteController),
-      );
-    } else {
-      await store.updatePriceObservation(
-        id: initialObservation.id,
-        wineId: initialObservation.wineId,
-        sourceName: _sourceController.text.trim(),
-        price: int.parse(_priceController.text.trim()),
-        observedAt: initialObservation.observedAt,
-        url: _nullableText(_urlController),
-        note: _nullableText(_noteController),
-        isInStock: initialObservation.isInStock,
-      );
-    }
+    try {
+      final initialObservation = widget.initialObservation;
+      if (initialObservation == null) {
+        await store.addPriceObservation(
+          wineId: widget.wineId,
+          sourceName: _sourceController.text.trim(),
+          price: int.parse(_priceController.text.trim()),
+          observedAt: DateTime.now(),
+          url: _nullableText(_urlController),
+          note: _nullableText(_noteController),
+        );
+      } else {
+        await store.updatePriceObservation(
+          id: initialObservation.id,
+          wineId: initialObservation.wineId,
+          sourceName: _sourceController.text.trim(),
+          price: int.parse(_priceController.text.trim()),
+          observedAt: initialObservation.observedAt,
+          url: _nullableText(_urlController),
+          note: _nullableText(_noteController),
+          isInStock: initialObservation.isInStock,
+          volumeMl: initialObservation.volumeMl,
+        );
+      }
 
-    if (mounted) {
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('가격을 저장하지 못했습니다.')));
     }
   }
 
@@ -561,8 +662,8 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
     if (value == null || value.trim().isEmpty) {
       return '필수 입력값입니다.';
     }
-    if (int.tryParse(value.trim()) == null) {
-      return '숫자로 입력해 주세요.';
+    if ((int.tryParse(value.trim()) ?? 0) <= 0) {
+      return '0보다 큰 가격을 입력해 주세요.';
     }
     return null;
   }
@@ -570,42 +671,6 @@ class _PriceObservationSheetState extends State<_PriceObservationSheet> {
   String? _nullableText(TextEditingController controller) {
     final value = controller.text.trim();
     return value.isEmpty ? null : value;
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.rows});
-
-  final List<_InfoRow> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            for (final row in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(row.label),
-                    Flexible(
-                      child: Text(
-                        row.value,
-                        textAlign: TextAlign.end,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

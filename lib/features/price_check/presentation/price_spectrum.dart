@@ -12,7 +12,8 @@ class PriceSpectrum extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ratio = analysis.ratioToAverage ?? 1.0;
+    final ratio = analysis.ratioToAverage;
+    if (ratio == null) return const Text('구매가 또는 유효한 참고 가격이 없습니다.');
     final position = ((ratio - 0.7) / 0.6).clamp(0.0, 1.0);
     final averagePrice = analysis.averagePrice;
 

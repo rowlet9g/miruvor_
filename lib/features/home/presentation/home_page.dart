@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:miruvor/core/database/app_database.dart';
 import 'package:miruvor/core/models/tasting_note.dart';
+import 'package:miruvor/features/cellar/presentation/wine_detail_page.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/core/utils/formatters.dart';
 import 'package:miruvor/features/shared/presentation/section_title.dart';
@@ -13,15 +14,29 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = MiruvorScope.of(context);
 
-    return StreamBuilder<List<WineWithBottle>>(
-      stream: store.watchCellar(),
+    return StreamBuilder<List<WineEntry>>(
+      stream: store.watchCatalog(),
       builder: (context, snapshot) {
-        final cellar = snapshot.data ?? const <WineWithBottle>[];
-        final openBottles = cellar.where((item) => !item.bottle.isConsumed);
-        final cellarValue = openBottles.fold<int>(
-          0,
-          (sum, item) => sum + item.bottle.purchasePrice,
-        );
+        if (snapshot.hasError) {
+          return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('기록을 열지 못했습니다. ${snapshot.error}'));
+        }
+        final cellar = snapshot.data ?? const <WineEntry>[];
+        final openBottles = [
+          for (final entry in cellar)
+            for (final bottle in entry.bottles.where((b) => b.isInStock))
+              WineWithBottle(
+                  wine: entry.wine,
+                  bottle: bottle,
+                  purchase: entry.purchaseFor(bottle)),
+        ];
+        final knownPrices = openBottles
+            .map((b) => b.purchasePrice)
+            .whereType<double>()
+            .toList();
+        final cellarValue = knownPrices.fold<double>(0, (a, b) => a + b);
+        final unknownCost = openBottles.length - knownPrices.length;
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -37,12 +52,13 @@ class HomePage extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _MetricCard(
-                    label: '구매 총액',
+                    label: '보유 병 구매 원가',
                     value: formatKrw(cellarValue),
                   ),
                 ),
               ],
             ),
+            if (unknownCost > 0) Text('원가 미상 $unknownCost병 제외'),
             const SizedBox(height: 24),
             const SectionTitle(title: '최근 등록'),
             const SizedBox(height: 12),
@@ -51,7 +67,13 @@ class HomePage extends StatelessWidget {
             else
               WineCard(
                 wine: cellar.first.wine,
-                bottle: cellar.first.bottle,
+                bottle: cellar.first.bottles.isEmpty
+                    ? null
+                    : cellar.first.bottles.first,
+                purchasePrice: cellar.first.latestUnitPrice,
+                stockCount: cellar.first.stockCount,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => WineDetailPage(wine: cellar.first.wine))),
               ),
             const SizedBox(height: 24),
             const SectionTitle(title: '최근 테이스팅'),
@@ -129,14 +151,14 @@ class _TastingSummaryCard extends StatelessWidget {
                     Text(
                       wine == null
                           ? '알 수 없는 와인'
-                          : '${wine.name} ${wine.displayVintage}',
+                          : '${wine.displayName} ${wine.displayVintage}',
                       style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${formatDate(note.tastedAt)} · ${note.rating.toStringAsFixed(1)} / 5.0',
+                      '${formatDate(note.tastedAt)} · ${note.displayRating}',
                       style: textTheme.bodyMedium,
                     ),
                     if (note.pairing != null) ...[

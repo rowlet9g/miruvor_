@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:miruvor/core/database/app_database.dart';
 import 'package:miruvor/core/media/local_image_store.dart';
 import 'package:miruvor/core/models/wine_type.dart';
+import 'package:miruvor/core/models/bottle.dart';
+import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/store/miruvor_store.dart';
 
 void main() {
@@ -72,23 +74,43 @@ void main() {
     test('replacing a bottle image deletes the previous image', () async {
       final item = await _addWine(store, imagePath: 'managed/bottle-old.jpg');
 
-      await store.updateWinePurchase(
+      await store.saveBottle(Bottle(
+        id: item.bottle.id,
         wineId: item.wine.id,
-        bottleId: item.bottle.id,
-        purchaseDate: item.bottle.purchaseDate,
-        name: item.wine.name,
-        producer: item.wine.producer,
-        country: item.wine.country,
-        type: item.wine.type,
-        purchasePrice: item.bottle.purchasePrice,
+        purchaseId: item.bottle.purchaseId,
+        acquisitionKind: item.bottle.acquisitionKind,
+        volumeMl: item.bottle.volumeMl,
         imagePath: 'managed/bottle-new.jpg',
-      );
+      ));
 
       expect(imageStore.deletedPaths, ['managed/bottle-old.jpg']);
       expect(
         (await store.findBottle(item.bottle.id))?.imagePath,
         'managed/bottle-new.jpg',
       );
+    });
+
+    test(
+        'failed image replacement preserves the original and discards only the imported copy',
+        () async {
+      final id = await store.createWine(
+          name: 'Original', imagePath: 'managed/original.jpg');
+      final imported =
+          await store.importImage('picker/new.jpg', prefix: 'replacement');
+      await expectLater(
+          store.saveWine(Wine(
+              id: id,
+              name: 'Original',
+              imagePath: imported,
+              vintage: 2020,
+              vintageKind: VintageKind.unknown)),
+          throwsArgumentError);
+      // The form discards its newly imported copy after a failed DB save.
+      await store.discardImage(imported);
+      expect((await store.findWine(id))!.imagePath, 'managed/original.jpg');
+      expect(imageStore.deletedPaths, ['managed/replacement.jpg']);
+      await store.discardImage('managed/original.jpg');
+      expect(imageStore.deletedPaths, ['managed/replacement.jpg']);
     });
 
     test('deleting a wine deletes its bottle and tasting images', () async {
@@ -101,10 +123,8 @@ void main() {
         imagePath: 'managed/tasting.jpg',
       );
 
-      await store.deleteWinePurchase(
-        wineId: item.wine.id,
-        bottleId: item.bottle.id,
-      );
+      await store.deleteWine(item.wine.id,
+          expected: await store.previewWineDeletion(item.wine.id));
 
       expect(
         imageStore.deletedPaths,

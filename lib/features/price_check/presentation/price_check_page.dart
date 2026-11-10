@@ -13,10 +13,10 @@ class PriceCheckPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = MiruvorScope.of(context);
 
-    return StreamBuilder<List<WineWithBottle>>(
-      stream: store.watchCellar(),
+    return StreamBuilder<List<WineEntry>>(
+      stream: store.watchCatalog(),
       builder: (context, cellarSnapshot) {
-        final cellar = cellarSnapshot.data ?? const <WineWithBottle>[];
+        final cellar = cellarSnapshot.data ?? const <WineEntry>[];
 
         if (cellar.isEmpty) {
           return const Center(child: Text('아직 등록된 와인이 없습니다.'));
@@ -35,7 +35,7 @@ class PriceCheckPage extends StatelessWidget {
                 final item = cellar[index];
                 final observations = _pricesFor(item.wine.id, prices);
                 final analysis = PriceAnalysis(
-                  purchasePrice: item.bottle.purchasePrice,
+                  purchasePrice: item.latestUnitPrice,
                   observations: observations,
                 );
 
@@ -46,7 +46,7 @@ class PriceCheckPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${item.wine.name} ${item.wine.displayVintage}',
+                          '${item.wine.displayName} ${item.wine.displayVintage}',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
@@ -56,8 +56,8 @@ class PriceCheckPage extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('구매가'),
-                            Text(formatKrw(item.bottle.purchasePrice)),
+                            const Text('최근 구매 병당가'),
+                            Text(formatKrw(item.latestUnitPrice)),
                           ],
                         ),
                         if (!analysis.hasMarketData) ...[

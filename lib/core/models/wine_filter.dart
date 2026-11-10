@@ -1,67 +1,53 @@
-import 'package:miruvor/core/models/bottle.dart';
+import 'package:miruvor/core/database/app_database.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 
 class WineFilter {
-  const WineFilter({
-    this.query = '',
-    this.country = '',
-    this.type,
-    this.minPrice,
-    this.maxPrice,
-  });
-
-  final String query;
-  final String country;
+  const WineFilter(
+      {this.query = '',
+      this.country = '',
+      this.type,
+      this.minPrice,
+      this.maxPrice});
+  final String query, country;
   final WineType? type;
-  final int? minPrice;
-  final int? maxPrice;
+  final int? minPrice, maxPrice;
+  bool get hasActiveFilters =>
+      query.trim().isNotEmpty ||
+      country.trim().isNotEmpty ||
+      type != null ||
+      minPrice != null ||
+      maxPrice != null;
 
-  bool get hasActiveFilters {
-    return query.trim().isNotEmpty ||
-        country.trim().isNotEmpty ||
-        type != null ||
-        minPrice != null ||
-        maxPrice != null;
+  bool matchesEntry(WineEntry entry) {
+    if (minPrice == null && maxPrice == null) return matches(entry.wine, null);
+    return entry.purchases
+        .any((purchase) => matches(entry.wine, purchase.unitPrice));
   }
 
-  bool matches(Wine wine, Bottle bottle) {
-    final normalizedQuery = query.trim().toLowerCase();
-    if (normalizedQuery.isNotEmpty && !_matchesQuery(wine, normalizedQuery)) {
-      return false;
-    }
-
-    final normalizedCountry = country.trim().toLowerCase();
-    if (normalizedCountry.isNotEmpty &&
-        !wine.country.toLowerCase().contains(normalizedCountry)) {
-      return false;
-    }
-
-    if (type != null && wine.type != type) {
-      return false;
-    }
-
-    if (minPrice != null && bottle.purchasePrice < minPrice!) {
-      return false;
-    }
-
-    if (maxPrice != null && bottle.purchasePrice > maxPrice!) {
-      return false;
-    }
-
-    return true;
-  }
-
-  bool _matchesQuery(Wine wine, String normalizedQuery) {
-    final haystack = [
+  bool matches(Wine wine, num? purchasePrice) {
+    final normalized = query.trim().toLowerCase();
+    final text = [
       wine.name,
       wine.producer,
       wine.country,
-      if (wine.region != null) wine.region!,
-      if (wine.vintage != null) wine.vintage.toString(),
-      ...wine.grapeVarieties,
-    ].join(' ').toLowerCase();
-
-    return haystack.contains(normalizedQuery);
+      wine.region,
+      wine.displayVintage,
+      ...wine.grapeVarieties
+    ].whereType<String>().join(' ').toLowerCase();
+    if (normalized.isNotEmpty && !text.contains(normalized)) return false;
+    if (country.trim().isNotEmpty &&
+        !(wine.country ?? '')
+            .toLowerCase()
+            .contains(country.trim().toLowerCase())) {
+      return false;
+    }
+    if (type != null && type != wine.type) return false;
+    if ((minPrice != null || maxPrice != null) && purchasePrice == null) {
+      return false;
+    }
+    if (minPrice != null && purchasePrice! < minPrice!) return false;
+    if (maxPrice != null && purchasePrice! > maxPrice!) return false;
+    return true;
   }
 }

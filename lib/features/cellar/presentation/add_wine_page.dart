@@ -1,351 +1,191 @@
 import 'package:flutter/material.dart';
-import 'package:miruvor/core/models/bottle.dart';
-import 'package:miruvor/core/models/price_observation.dart';
 import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/models/wine_type.dart';
 import 'package:miruvor/core/store/miruvor_scope.dart';
-import 'package:miruvor/core/store/miruvor_store.dart';
-import 'package:miruvor/features/shared/presentation/date_picker_field.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class AddWinePage extends StatefulWidget {
-  const AddWinePage({
-    this.initialWine,
-    this.initialBottle,
-    this.initialReferencePrice,
-    super.key,
-  });
-
+  const AddWinePage({this.initialWine, super.key});
   final Wine? initialWine;
-  final Bottle? initialBottle;
-  final PriceObservation? initialReferencePrice;
-
   @override
   State<AddWinePage> createState() => _AddWinePageState();
 }
 
 class _AddWinePageState extends State<AddWinePage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _producerController = TextEditingController();
-  final _countryController = TextEditingController();
-  final _regionController = TextEditingController();
-  final _vintageController = TextEditingController();
-  final _grapeVarietiesController = TextEditingController();
-  final _shopNameController = TextEditingController();
-  final _storageLocationController = TextEditingController();
-  final _purchasePriceController = TextEditingController();
-  final _referencePriceController = TextEditingController();
-
-  WineType _type = WineType.red;
-  DateTime _purchaseDate = DateTime.now();
-  String? _selectedImagePath;
-  bool _isConsumed = false;
-  bool _isSaving = false;
-  bool get _isEditing =>
-      widget.initialWine != null && widget.initialBottle != null;
+  final _name = TextEditingController();
+  final _producer = TextEditingController();
+  final _country = TextEditingController();
+  final _region = TextEditingController();
+  final _vintage = TextEditingController();
+  final _grapes = TextEditingController();
+  WineType? _type;
+  VintageKind _vintageKind = VintageKind.unknown;
+  String? _photo;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-
     final wine = widget.initialWine;
-    final bottle = widget.initialBottle;
-    final referencePrice = widget.initialReferencePrice;
-
-    if (wine != null && bottle != null) {
-      _nameController.text = wine.name;
-      _producerController.text = wine.producer;
-      _countryController.text = wine.country;
-      _regionController.text = wine.region ?? '';
-      _vintageController.text = wine.vintage?.toString() ?? '';
-      _grapeVarietiesController.text = wine.grapeVarieties.join(', ');
-      _shopNameController.text = bottle.shopName ?? '';
-      _storageLocationController.text = bottle.storageLocation ?? '';
-      _purchasePriceController.text = bottle.purchasePrice.toString();
-      _referencePriceController.text = referencePrice?.price.toString() ?? '';
+    if (wine != null) {
+      _name.text = wine.name ?? '';
+      _producer.text = wine.producer ?? '';
+      _country.text = wine.country ?? '';
+      _region.text = wine.region ?? '';
+      _vintage.text = wine.vintage?.toString() ?? '';
+      _grapes.text = wine.grapeVarieties.join(', ');
       _type = wine.type;
-      _purchaseDate = bottle.purchaseDate;
-      _selectedImagePath = bottle.imagePath;
-      _isConsumed = bottle.isConsumed;
+      _vintageKind = wine.vintageKind;
+      _photo = wine.imagePath;
     }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _producerController.dispose();
-    _countryController.dispose();
-    _regionController.dispose();
-    _vintageController.dispose();
-    _grapeVarietiesController.dispose();
-    _shopNameController.dispose();
-    _storageLocationController.dispose();
-    _purchasePriceController.dispose();
-    _referencePriceController.dispose();
+    for (final c in [_name, _producer, _country, _region, _vintage, _grapes]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(_isEditing ? 'Edit Wine' : 'Add Wine')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            PhotoPickerField(
-              imagePath: _selectedImagePath,
-              onImageSelected: (path) {
-                setState(() => _selectedImagePath = path);
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: '이름'),
-              textInputAction: TextInputAction.next,
-              validator: _required,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _producerController,
-              decoration: const InputDecoration(labelText: '생산자'),
-              textInputAction: TextInputAction.next,
-              validator: _required,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _countryController,
-              decoration: const InputDecoration(labelText: '국가'),
-              textInputAction: TextInputAction.next,
-              validator: _required,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _regionController,
-              decoration: const InputDecoration(labelText: '지역'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<WineType>(
-              initialValue: _type,
-              decoration: const InputDecoration(labelText: '종류'),
-              items: WineType.values.map((type) {
-                return DropdownMenuItem(value: type, child: Text(type.label));
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _type = value);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _vintageController,
-              decoration: const InputDecoration(labelText: '빈티지'),
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              validator: _optionalInt,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _grapeVarietiesController,
-              decoration: const InputDecoration(labelText: '포도 품종'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _shopNameController,
-              decoration: const InputDecoration(labelText: '구매처'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _storageLocationController,
-              decoration: const InputDecoration(labelText: '보관 위치'),
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            DatePickerField(
-              label: '구매일',
-              value: _purchaseDate,
-              onChanged: (date) {
-                setState(() => _purchaseDate = date);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _purchasePriceController,
-              decoration: const InputDecoration(labelText: '구매 가격'),
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              validator: _requiredInt,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _referencePriceController,
-              decoration: const InputDecoration(labelText: '수동 기준가'),
-              keyboardType: TextInputType.number,
-              validator: _optionalInt,
-            ),
-            const SizedBox(height: 12),
-            CheckboxListTile(
-              value: _isConsumed,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('마신 병으로 표시'),
-              controlAffinity: ListTileControlAffinity.leading,
-              onChanged: (value) {
-                setState(() => _isConsumed = value ?? false);
-              },
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              icon: _isSaving
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(_isEditing ? '수정 저장' : '저장'),
-              onPressed: _isSaving ? null : _save,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+            title: Text(widget.initialWine == null ? '와인 등록' : '와인 정보 수정')),
+        body: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text('이름 또는 사진으로 등록할 수 있습니다. 구매와 병은 상세 화면에서 추가하세요.'),
+                const SizedBox(height: 12),
+                PhotoPickerField(
+                    imagePath: _photo,
+                    onImageSelected: (path) => setState(() => _photo = path)),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: _name,
+                    decoration: const InputDecoration(labelText: '이름'),
+                    validator: (v) =>
+                        (v?.trim().isEmpty ?? true) && _photo == null
+                            ? '이름 또는 사진이 필요합니다.'
+                            : null),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: _producer,
+                    decoration: const InputDecoration(labelText: '생산자')),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: _country,
+                    decoration: const InputDecoration(labelText: '국가')),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: _region,
+                    decoration: const InputDecoration(labelText: '지역')),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<WineType>(
+                    initialValue: _type,
+                    decoration: const InputDecoration(labelText: '종류'),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('미상')),
+                      ...WineType.values.map((t) =>
+                          DropdownMenuItem(value: t, child: Text(t.label)))
+                    ],
+                    onChanged: (v) => setState(() => _type = v)),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<VintageKind>(
+                    initialValue: _vintageKind,
+                    decoration: const InputDecoration(labelText: '빈티지 구분'),
+                    items: const [
+                      DropdownMenuItem(
+                          value: VintageKind.unknown, child: Text('빈티지 미상')),
+                      DropdownMenuItem(
+                          value: VintageKind.year, child: Text('연도')),
+                      DropdownMenuItem(
+                          value: VintageKind.nonVintage, child: Text('NV')),
+                    ],
+                    onChanged: (v) => setState(() => _vintageKind = v!)),
+                if (_vintageKind == VintageKind.year) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                      controller: _vintage,
+                      decoration: const InputDecoration(labelText: '빈티지'),
+                      keyboardType: TextInputType.number,
+                      validator: (v) => int.tryParse(v ?? '') == null
+                          ? '연도를 숫자로 입력하세요.'
+                          : null),
+                ],
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: _grapes,
+                    decoration: const InputDecoration(labelText: '포도 품종')),
+                const SizedBox(height: 20),
+                FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: Text(_saving
+                        ? '저장 중'
+                        : widget.initialWine == null
+                            ? '저장'
+                            : '수정 저장')),
+              ],
+            )),
+      );
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() => _isSaving = true);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
     final store = MiruvorScope.of(context);
-    String? importedImagePath;
-
+    String? imported;
     try {
-      final storedImagePath = await _storedImagePath(store);
-      if (_selectedImagePath != widget.initialBottle?.imagePath) {
-        importedImagePath = storedImagePath;
+      final original = widget.initialWine;
+      var photo = _photo;
+      if (photo != null && photo != original?.imagePath) {
+        photo = imported = await store.importImage(photo, prefix: 'wine');
       }
-      final referencePrice = _nullableInt(_referencePriceController);
-      final grapeVarieties = _grapeVarietiesController.text
+      final grapes = _grapes.text
           .split(',')
-          .map((value) => value.trim())
-          .where((value) => value.isNotEmpty)
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
           .toList();
-
-      if (_isEditing) {
-        await store.updateWinePurchase(
-          wineId: widget.initialWine!.id,
-          bottleId: widget.initialBottle!.id,
-          purchaseDate: _purchaseDate,
-          name: _nameController.text.trim(),
-          producer: _producerController.text.trim(),
-          country: _countryController.text.trim(),
-          region: _nullableText(_regionController),
-          vintage: _nullableInt(_vintageController),
-          type: _type,
-          grapeVarieties: grapeVarieties,
-          shopName: _nullableText(_shopNameController),
-          storageLocation: _nullableText(_storageLocationController),
-          purchasePrice: _requiredParsedInt(_purchasePriceController),
-          referencePrice: referencePrice,
-          imagePath: storedImagePath,
-          isConsumed: _isConsumed,
-        );
+      final vintage =
+          _vintageKind == VintageKind.year ? int.parse(_vintage.text) : null;
+      if (original == null) {
+        await store.createWine(
+            name: _text(_name),
+            producer: _text(_producer),
+            country: _text(_country),
+            region: _text(_region),
+            vintage: vintage,
+            vintageKind: _vintageKind,
+            type: _type,
+            grapeVarieties: grapes,
+            imagePath: photo);
       } else {
-        await store.addWinePurchase(
-          name: _nameController.text.trim(),
-          producer: _producerController.text.trim(),
-          country: _countryController.text.trim(),
-          region: _nullableText(_regionController),
-          vintage: _nullableInt(_vintageController),
-          type: _type,
-          grapeVarieties: grapeVarieties,
-          shopName: _nullableText(_shopNameController),
-          storageLocation: _nullableText(_storageLocationController),
-          purchaseDate: _purchaseDate,
-          purchasePrice: _requiredParsedInt(_purchasePriceController),
-          referencePrice: referencePrice,
-          imagePath: storedImagePath,
-        );
+        await store.saveWine(Wine(
+            id: original.id,
+            name: _text(_name),
+            producer: _text(_producer),
+            country: _text(_country),
+            region: _text(_region),
+            vintage: vintage,
+            vintageKind: _vintageKind,
+            type: _type,
+            grapeVarieties: grapes,
+            imagePath: photo,
+            isArchived: original.isArchived,
+            isWishlisted: original.isWishlisted));
       }
-    } catch (_) {
-      await store.discardImage(importedImagePath);
-      if (!mounted) {
-        return;
-      }
-
-      setState(() => _isSaving = false);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      await store.discardImage(imported);
+      if (!mounted) return;
+      setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('저장에 실패했습니다.')),
-      );
-      return;
+          const SnackBar(content: Text('저장하지 못했습니다. 입력 내용을 확인해 주세요.')));
     }
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.of(context).pop(true);
   }
 
-  Future<String?> _storedImagePath(MiruvorStore store) async {
-    if (_selectedImagePath == null) {
-      return null;
-    }
-    if (_selectedImagePath == widget.initialBottle?.imagePath) {
-      return _selectedImagePath;
-    }
-
-    return store.importImage(
-      _selectedImagePath!,
-      prefix: 'bottle',
-    );
-  }
-
-  String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return '필수 입력값입니다.';
-    }
-    return null;
-  }
-
-  String? _requiredInt(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return '필수 입력값입니다.';
-    }
-    if (int.tryParse(value.trim()) == null) {
-      return '숫자로 입력해 주세요.';
-    }
-    return null;
-  }
-
-  String? _optionalInt(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null;
-    }
-    if (int.tryParse(value.trim()) == null) {
-      return '숫자로 입력해 주세요.';
-    }
-    return null;
-  }
-
-  String? _nullableText(TextEditingController controller) {
-    final value = controller.text.trim();
-    return value.isEmpty ? null : value;
-  }
-
-  int? _nullableInt(TextEditingController controller) {
-    final value = controller.text.trim();
-    return value.isEmpty ? null : int.parse(value);
-  }
-
-  int _requiredParsedInt(TextEditingController controller) {
-    return int.parse(controller.text.trim());
-  }
+  String? _text(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : c.text.trim();
 }

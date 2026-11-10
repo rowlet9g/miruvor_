@@ -6,17 +6,25 @@ import 'package:miruvor/core/models/wine.dart';
 import 'package:miruvor/core/utils/formatters.dart';
 
 class WineCard extends StatelessWidget {
-  const WineCard({required this.wine, this.bottle, this.onTap, super.key});
+  const WineCard(
+      {required this.wine,
+      this.bottle,
+      this.purchasePrice,
+      this.stockCount,
+      this.onTap,
+      super.key});
 
   final Wine wine;
   final Bottle? bottle;
+  final num? purchasePrice;
+  final int? stockCount;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final regionText = [
-      wine.country,
+      wine.country ?? '국가 미상',
       if (wine.region != null) wine.region!,
     ].join(' · ');
 
@@ -33,7 +41,8 @@ class WineCard extends StatelessWidget {
                 child: SizedBox(
                   width: 48,
                   height: 64,
-                  child: _BottleImage(imagePath: bottle?.imagePath),
+                  child: _BottleImage(
+                      imagePath: wine.imagePath ?? bottle?.imagePath),
                 ),
               ),
               const SizedBox(width: 14),
@@ -42,7 +51,7 @@ class WineCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${wine.name} ${wine.displayVintage}',
+                      '${wine.displayName} ${wine.displayVintage}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.titleMedium?.copyWith(
@@ -51,7 +60,7 @@ class WineCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      wine.producer,
+                      wine.producer ?? '생산자 미상',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -62,10 +71,14 @@ class WineCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodySmall,
                     ),
-                    if (bottle != null) ...[
+                    if (stockCount != null) ...[
+                      const SizedBox(height: 8),
+                      Text('보유 $stockCount병'),
+                    ],
+                    if (purchasePrice != null) ...[
                       const SizedBox(height: 8),
                       Text(
-                        formatKrw(bottle!.purchasePrice),
+                        formatKrw(purchasePrice),
                         style: textTheme.labelLarge,
                       ),
                     ],

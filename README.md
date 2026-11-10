@@ -1,48 +1,113 @@
 # Miruvor
 
-Personal wine-log mobile application built with Flutter.
+와인·구매·병·시음 이력을 기기에 보관하고, 직접 입력한 참고 가격을 비교하는 Flutter 모바일 앱.
 
-## MVP scope
+제품 방향: **마신 와인의 취향과 실제 구매가를 쌓아, 다시 살 와인과 다시 살 가격을 기억하는 앱.**
 
-- Record purchased wines with producer, vintage, grape varieties, purchase date,
-  purchase price, shop, storage location, and photo path.
-- Keep tasting notes with rating, aroma, palate, pairing, and personal memo.
-- Attach photos from the camera or photo library and store them under the app's
-  local documents directory.
-- Compare purchase price against a reference price entered manually at first.
-- Pick purchase and tasting dates instead of relying on the current day.
-- Search and filter the local wine collection by name, producer, country, type,
-  and price range.
-- Reuse the same local filter controls in cellar and wine search views.
-- Edit and delete wine purchases and tasting notes from the app UI.
+현재는 독립적인 와인 기록과 구매·보유 이력을 갖춘 초기 MVP. 구매 없는 시음, 같은 와인의 여러 병과 재구매를 지원하며, 빠른 기록 흐름 개선과 사용자용 백업·복원은 후속 범위.
 
-External price/review integrations are intentionally outside the first build.
-They should be added through adapters after API access, terms, and data quality
-are verified.
+## 현재 상태
 
-## Project shape
+**2026-11-10: P0 정책 확정 및 P1 구현·자동 검증 완료.** DB v2 적용, v1 → v2 이전과 실패 시 복구 검증 포함.
+
+| 항목 | 상태 |
+|---|---|
+| 앱 버전 | `0.1.0+1` |
+| 플랫폼 | Android·iOS 프로젝트 포함; 이번 작업의 실기기·배포 검증은 미실행 |
+| 저장 방식 | Drift / SQLite v2, 앱 문서 폴더의 사진 파일 |
+| 화면 | Home / Cellar / Notes / Prices / Search |
+| 정적 분석 | `flutter analyze --no-pub` — 문제 없음 |
+| 자동 테스트 | `flutter test --no-pub --reporter expanded` — 42개 통과 |
+| 다음 단계 | P2 빠른 기록·화면 정리; API 연동은 별도 후속 작업 |
+
+### 구현된 기능
+
+- **와인 독립 등록:** 이름 또는 사진으로 시작, 생산자·국가 등은 선택 입력. 빈티지는 연도·NV·미상 구분, 관심·보관 상태 관리.
+- **구매와 병 분리:** 한 구매의 원래 수량·결제 총액과 실제 병별 상태를 따로 저장. 기존 와인 상세에서 재구매 추가, 선물받은 병은 구매 없이 등록.
+- **보유 상태:** 보유·소비·선물·반품과 상태 정정. 재고는 보유 병 수, 홈의 금액은 가격을 아는 보유 병의 구매 원가 합계.
+- **시음 기록:** 구매나 병 없이 와인에 감상 저장. 날짜·평점은 미상 허용, 메모·향·맛·페어링·사진 수정·삭제.
+- **삭제·보존:** 구매 삭제 시 병·노트 유지, 병 삭제 시 노트의 병 연결만 해제. 와인 전체 영구 삭제는 관련 기록·사진 영향 확인 후 별도 실행.
+- **사진 관리:** 앱 폴더 복사, 전체 기록의 참조 확인 후 미사용 사진 정리, 실패한 정리 작업은 저장해 재시도.
+- **검색·가격:** 로컬 와인 검색과 국가·종류·과거 구매 단가 필터, 검색 결과에서 상세 진입. 수동 참고 가격 이력은 구매 수정과 독립적으로 유지.
+- **DB 이전:** 파일 DB의 일관된 복구 사본 생성 후 v1 → v2 이전. ID·시음·가격·사진 경로 보존, 잘못된 기존 값이나 중간 오류 발생 시 전체 이전 취소.
+
+### 현재 제약
+
+- Cellar와 Search의 역할 중복 및 5개 탭 정리는 P2 범위. 첫 기록 30초 목표는 실사용 측정 전.
+- 세부 맛 평가·재구매 의사는 모델·DB에 존재하나 입력 UI 미연결. 특정 병 선택과 소비·시음 동시 저장 화면은 P3 범위.
+- 가격 판단은 사용자가 입력한 양수 참고 가격의 단순 평균 기준. 날짜·재고·용량·구매 조건을 반영한 비교는 P4 범위.
+- 앱 내 백업·복원·동기화, 외부 API·리뷰 연동, 가격 알림은 미구현. 이전 전 DB 복구 사본은 사용자용 사진 포함 백업을 대신하지 않는 기능.
+- Android 배포 식별자와 서명은 개발용 설정. 실제 카메라·앨범 권한, Android·iOS 실행 및 배포 빌드 검증은 별도 작업.
+
+상세 현황·남은 과제·검증 범위: [프로젝트 계획서](docs/project-plan.md#current-status).
+
+## 문서
+
+| 문서 | 역할 |
+|---|---|
+| [프로젝트 계획서](docs/project-plan.md) | 제품 콘셉트, 현재 진행 상황, 다음 작업과 완료 조건 |
+| [P0 도메인·보존 정책](docs/domain-policy.md) | 와인·구매·병·시음 관계, 미상 값, 삭제·사진 보존, v1 이전 계약 |
+| [설계 노트](docs/architecture.md) | v2 저장 구조, 이미지 수명 관리, 마이그레이션 규칙, 외부 연동 경계 |
+| [API 연동 검토](docs/api-integration-options.md) | 선택적 라벨·메모 입력 보조와 비용 실험 제안; 구현 미착수 |
+
+## 다음 작업 순서
+
+P0·P1 완료. P1에서 최소 등록·상태 관리와 일부 화면 연결도 구현했으며, 아래 단계의 전체 완료와는 구분.
+
+1. **P2 — 빠른 기록과 화면 정리:** 검색·메뉴 통합, 재구매 의사·세부 맛 입력, 첫 기록 시간 측정.
+2. **P3 — 보유·소비·시음 연결:** 특정 병 선택, 소비와 시음 동시 저장 또는 건너뛰는 화면.
+3. **P4 — 가격 판단의 근거 표시:** 비교 조건, 출처·시점·표본 수, 자료 부족·비교 불가 표시.
+4. **P5 — 백업·복원과 사용 검증:** 기록·사진 내보내기 및 복원, 기기에서 대표 시나리오 검증.
+
+의존 관계와 완료 조건: [다음 작업 우선순위](docs/project-plan.md#priorities).
+선택적 AI 입력 보조는 라벨 사진 → 사용자 확인 → 저장 흐름을 후보로 유지. 이번 P1에는 API 호출·서버·키 설정 변경 없음.
+
+## 개발 환경과 실행
+
+검증 환경: Windows, Flutter `3.41.6`, Dart `3.11.4`. 이 버전은 실행 확인 환경이며 최소 지원 버전의 보증은 아님.
+
+필수 환경: Flutter SDK의 `PATH` 설정 및 대상 플랫폼 도구. Android 실행에는 Android SDK와 연결 기기 또는 에뮬레이터, iOS 빌드에는 macOS와 Xcode 필요.
+
+저장소 루트에서 의존성 설치 및 기본 검사:
+
+```powershell
+flutter pub get
+flutter analyze
+flutter test
+```
+
+연결된 대상 확인 및 실행:
+
+```powershell
+flutter devices
+flutter run
+```
+
+Android·iOS 플랫폼 폴더는 저장소에 포함된 상태. 일반적인 개발 시작 과정에서 `flutter create .` 재실행은 불필요.
+
+DB 변경 절차: [Database migrations](docs/architecture.md#database-migrations). 현재 스키마 v2, v1·v2 스냅샷과 데이터 보존 테스트 포함. 기존 DB는 첫 열기에서 자동 이전하며 실패 시 원인과 복구 사본 경로를 오류에 포함; 복구 안내 화면은 후속 개선 대상.
+
+## 프로젝트 구조
 
 ```text
 lib/
-  app/                 App entry, theme, top-level shell
+  app/                 앱 초기화, 테마
   core/
-    database/          Drift SQLite schema and local queries
-    models/            Domain models shared across features
-    store/             App-level persistence facade
-    utils/             Formatting and small shared helpers
+    database/          Drift 스키마·쿼리·관계 제약·v1 이전
+    media/             앱 소유 이미지 파일 관리
+    models/            와인·구매·병·시음·가격 모델
+    store/             저장·조회 진입점과 직렬 사진 정리
+    utils/             미상 값·날짜·금액 표시
   features/
-    cellar/            Purchased bottle and wine detail flows
-    tasting_notes/     Tasting note list and entry flows
-    price_check/       Price comparison and reference price UI
-    wine_search/       Search/filter UI
-    shared/            Reusable presentation widgets
+    home/              탭 내비게이션과 홈 요약
+    cellar/            와인·구매·병 입력, 목록, 상세
+    tasting_notes/     시음 기록 목록과 입력
+    price_check/       참고 가격 비교와 시각화
+    wine_search/       로컬 검색·필터
+    shared/            공통 입력·카드 위젯
+android/               Android 플랫폼 프로젝트
+ios/                   iOS 플랫폼 프로젝트
+test/                  위젯·보존 정책·파일·DB 이전 검증
+drift_schemas/         DB v1·v2 스키마 스냅샷
+docs/                  프로젝트 계획과 설계 노트
 ```
-
-## Next build steps
-
-1. Install or expose Flutter SDK on `PATH`.
-2. Run `flutter create .` in this directory to generate platform folders.
-3. Run `flutter pub get`.
-4. Add richer bottle state controls for open, consumed, gifted, or returned.
-5. Add explicit price observation history management.
-6. Add price-source adapters only for allowed APIs or user-entered references.

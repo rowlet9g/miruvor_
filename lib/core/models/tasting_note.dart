@@ -1,9 +1,11 @@
+enum BuyAgain { yes, no, unsure }
+
 class TastingNote {
   const TastingNote({
     required this.id,
     required this.wineId,
-    required this.tastedAt,
-    required this.rating,
+    this.tastedAt,
+    this.rating,
     this.bottleId,
     this.imagePath,
     this.aroma,
@@ -14,13 +16,14 @@ class TastingNote {
     this.body,
     this.sweetness,
     this.memo,
+    this.buyAgain,
   });
 
   final String id;
   final String wineId;
   final String? bottleId;
-  final DateTime tastedAt;
-  final double rating;
+  final DateTime? tastedAt;
+  final double? rating;
   final String? imagePath;
   final String? aroma;
   final String? palate;
@@ -30,4 +33,8 @@ class TastingNote {
   final int? body;
   final int? sweetness;
   final String? memo;
+  final BuyAgain? buyAgain;
+
+  String get displayRating =>
+      rating == null ? '미평가' : '${rating!.toStringAsFixed(1)} / 5.0';
 }

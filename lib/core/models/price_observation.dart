@@ -8,6 +8,7 @@ class PriceObservation {
     this.url,
     this.note,
     this.isInStock,
+    this.volumeMl,
   });
 
   final String id;
@@ -18,4 +19,5 @@ class PriceObservation {
   final String? url;
   final String? note;
   final bool? isInStock;
+  final int? volumeMl;
 }

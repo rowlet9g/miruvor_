@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:miruvor/features/cellar/presentation/wine_detail_page.dart';
 import 'package:miruvor/core/database/app_database.dart';
 import 'package:miruvor/core/models/wine_filter.dart';
 import 'package:miruvor/core/models/wine_type.dart';
@@ -45,10 +46,10 @@ class _WineSearchPageState extends State<WineSearchPage> {
     final store = MiruvorScope.of(context);
     final filter = _filter;
 
-    return StreamBuilder<List<WineWithBottle>>(
-      stream: store.watchCellar(filter: filter),
+    return StreamBuilder<List<WineEntry>>(
+      stream: store.watchCatalog(filter: filter),
       builder: (context, snapshot) {
-        final results = snapshot.data ?? const <WineWithBottle>[];
+        final results = snapshot.data ?? const <WineEntry>[];
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -72,7 +73,14 @@ class _WineSearchPageState extends State<WineSearchPage> {
               _EmptyResultsCard(hasActiveFilters: filter.hasActiveFilters)
             else
               for (final item in results) ...[
-                WineCard(wine: item.wine, bottle: item.bottle),
+                WineCard(
+                    wine: item.wine,
+                    bottle: item.bottles.isEmpty ? null : item.bottles.first,
+                    purchasePrice: item.latestUnitPrice,
+                    stockCount: item.stockCount,
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                            builder: (_) => WineDetailPage(wine: item.wine)))),
                 const SizedBox(height: 12),
               ],
           ],
