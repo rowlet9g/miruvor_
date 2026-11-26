@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:miruvor/features/cellar/presentation/add_wine_page.dart';
-import 'package:miruvor/features/cellar/presentation/cellar_page.dart';
+import 'package:miruvor/features/cellar/presentation/add_stock_flow.dart';
+import 'package:miruvor/features/cellar/presentation/cellar_inventory_page.dart';
 import 'package:miruvor/features/home/presentation/home_page.dart';
 import 'package:miruvor/features/price_check/presentation/price_check_page.dart';
 import 'package:miruvor/features/tasting_notes/presentation/tasting_notes_page.dart';
@@ -18,7 +19,7 @@ class _HomeShellState extends State<HomeShell> {
 
   static const _titles = [
     'Miruvor',
-    'My Cellar',
+    '내 셀러',
     'Tasting Notes',
     'Price Check',
     'Wine Search',
@@ -26,7 +27,7 @@ class _HomeShellState extends State<HomeShell> {
 
   static const _pages = [
     HomePage(),
-    CellarPage(),
+    CellarInventoryPage(),
     TastingNotesPage(),
     PriceCheckPage(),
     WineSearchPage(),
@@ -39,9 +40,13 @@ class _HomeShellState extends State<HomeShell> {
         title: Text(_titles[_selectedIndex]),
         actions: [
           IconButton(
-            tooltip: '와인 추가',
+            tooltip: _selectedIndex == 1 ? '보유 와인 추가' : '와인 추가',
             icon: const Icon(Icons.add),
             onPressed: () {
+              if (_selectedIndex == 1) {
+                addCellarStock(context);
+                return;
+              }
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (context) => const AddWinePage(),
@@ -66,7 +71,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: Icon(Icons.wine_bar_outlined),
             selectedIcon: Icon(Icons.wine_bar),
-            label: 'Cellar',
+            label: '내 셀러',
           ),
           NavigationDestination(
             icon: Icon(Icons.edit_note_outlined),

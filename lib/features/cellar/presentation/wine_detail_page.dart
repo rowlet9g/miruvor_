@@ -88,7 +88,8 @@ class WineDetailPage extends StatelessWidget {
                               context,
                               () => store.setArchived(
                                   currentWine.id, !currentWine.isArchived)),
-                      child: Text(currentWine.isArchived ? '보관 해제' : '와인 보관')),
+                      child:
+                          Text(currentWine.isArchived ? '기록 다시 표시' : '기록 숨기기')),
                 ]),
                 const SizedBox(height: 12),
                 const SectionTitle(title: '구매 이력'),

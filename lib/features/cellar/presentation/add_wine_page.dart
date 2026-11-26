@@ -5,8 +5,9 @@ import 'package:miruvor/core/store/miruvor_scope.dart';
 import 'package:miruvor/features/shared/presentation/photo_picker_field.dart';
 
 class AddWinePage extends StatefulWidget {
-  const AddWinePage({this.initialWine, super.key});
+  const AddWinePage({this.initialWine, this.onCreated, super.key});
   final Wine? initialWine;
+  final ValueChanged<String>? onCreated;
   @override
   State<AddWinePage> createState() => _AddWinePageState();
 }
@@ -151,7 +152,7 @@ class _AddWinePageState extends State<AddWinePage> {
       final vintage =
           _vintageKind == VintageKind.year ? int.parse(_vintage.text) : null;
       if (original == null) {
-        await store.createWine(
+        final wineId = await store.createWine(
             name: _text(_name),
             producer: _text(_producer),
             country: _text(_country),
@@ -161,6 +162,7 @@ class _AddWinePageState extends State<AddWinePage> {
             type: _type,
             grapeVarieties: grapes,
             imagePath: photo);
+        widget.onCreated?.call(wineId);
       } else {
         await store.saveWine(Wine(
             id: original.id,

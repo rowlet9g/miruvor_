@@ -1,0 +1,7 @@
+# Copy to key.properties and use your existing private signing key.
+# Resolve storeFile relative to the android directory; use / on Windows.
+# Never commit key.properties or the keystore. Never regenerate a key for updates.
+storeFile=keystores/miruvor-release.jks
+storePassword=REPLACE_WITH_PRIVATE_PASSWORD
+keyAlias=miruvor
+keyPassword=REPLACE_WITH_PRIVATE_PASSWORD

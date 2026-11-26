@@ -3,13 +3,23 @@
 ## Scope and status
 
 P0 policy and P1 implementation completed on **2026-11-10**. App version
-`0.1.0+1`, database version **2**. The [project plan](project-plan.md) records
+`0.2.0+2` as of 2026-11-26, database version **2**. The [project plan](project-plan.md) records
 current behavior, remaining work, and verification limits; the
 [domain contract](domain-policy.md) defines preservation requirements.
 
 Miruvor is a local-first wine log. Personal records remain usable without an
 account, external price provider, or AI service. No external API integration is
 implemented in P1.
+
+On **2026-11-26**, a dedicated cellar inventory view and stock-entry flow were
+added using the existing v2 tables. Schema, migration and API boundaries remain
+unchanged.
+
+The Android v0.2.0 prerelease provides a universal APK signed with a dedicated
+release key. The existing `com.example.miruvor` application ID is retained.
+Signing files remain private and missing release configuration fails the build;
+there is no debug-signing fallback. See [release procedures](releasing.md) for
+key preservation and the incompatibility with older debug-signed installations.
 
 ## Current v2 domain boundaries
 
@@ -71,6 +81,22 @@ any known historical purchase unit price. Unknown prices do not match a numeric
 price filter. Home inventory cost sums known unit costs of in-stock bottles and
 shows how many remaining bottles have unknown cost. Recent registration is
 ordered by Wine creation time.
+
+The primary cellar tab now uses `CellarInventoryPage`, displaying only in-stock
+bottles grouped by Wine ID. Search and location/acquisition filters apply to the
+bottles before calculating counts and known purchase cost. Each bottle uses its
+own linked purchase's unit price; consumed stock and the latest unrelated
+purchase do not affect the total. Missing prices are counted separately.
+The purchase-only filter uses acquisitionKind, so deleting a purchase preserves
+its detached physical bottles in this view with unknown cost.
+
+The previous catalog remains available through the full-records action. Archive
+controls are labeled as hiding records to distinguish them from physical storage.
+Stock entry selects an existing Wine or creates one, then opens its purchase/gift
+form. Cancelling the latter leaves an explicitly saved wine without inventing
+purchase or bottle rows. Individual bottle edits and status changes use the
+existing store operations and retain purchase/tasting history. Combined
+consumption-and-tasting entry remains deferred.
 
 ## Deletion and photo lifetime
 
@@ -168,11 +194,16 @@ For subsequent schema changes:
 4. Add populated historical-database preservation and failure tests.
 5. Run analysis and the complete test suite before committing.
 
-Current validation: **42 passing tests** and clean static analysis on Windows.
+Current validation: **51 passing tests** and clean static analysis on Windows
+(2026-11-26), including nine dedicated cellar inventory tests. The new selection
+flow is tested with a small viewport, enlarged text and keyboard insets.
 Coverage includes populated WAL v1 migration, recovery-copy readability, mid-step
 rollback, invalid legacy data rejection, v2 close/reopen, durable photo cleanup,
-foreign-key/trigger constraints, and widget flows. This does not validate mobile
-permissions, real-device upgrades, release builds, or user backup restoration.
+foreign-key/trigger constraints, and widget flows. Android release APK build,
+signature verification, package/version checks and 16 KiB ZIP alignment also
+passed. The APK targets SDK 36, requires SDK 24 and includes arm64-v8a,
+armeabi-v7a and x86_64. These checks do not validate mobile permissions,
+real-device upgrades, iOS release builds, or user backup restoration.
 A dedicated migration-recovery UI is not yet present.
 
 ## Optional external integrations

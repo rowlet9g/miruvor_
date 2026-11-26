@@ -61,7 +61,7 @@ class _CellarPageState extends State<CellarPage> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             SwitchListTile(
-                title: const Text('보관한 와인 보기'),
+                title: const Text('숨긴 와인 기록 보기'),
                 value: _archived,
                 onChanged: (v) => setState(() => _archived = v)),
             WineFilterPanel(

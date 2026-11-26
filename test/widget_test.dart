@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:miruvor/app/app.dart';
-import 'package:miruvor/core/database/app_database.dart';
 import 'package:miruvor/core/models/bottle.dart';
 import 'package:miruvor/core/models/wine_type.dart';
-import 'package:miruvor/core/store/miruvor_store.dart';
+
+import 'support/widget_helpers.dart';
 
 void main() {
   testWidgets('Miruvor renders the home shell', (tester) async {
@@ -36,7 +35,7 @@ void main() {
         isEmpty);
     final wine = (await store.database.catalogSnapshot()).single.wine;
     expect(wine.producer, isNull);
-    await tap(tester, find.text('Cellar'));
+    await openCatalog(tester);
     await tap(tester, find.textContaining('Test Wine'));
     await tap(tester, find.text('구매 추가'));
     await enter(tester, '구매 수량', '3');
@@ -75,7 +74,7 @@ void main() {
         purchasePrice: 82000);
     await store.createWine(name: 'Unknown Price');
     await tester.pumpAndSettle();
-    await tap(tester, find.text('Cellar'));
+    await openCatalog(tester);
     await enterFilter(tester, hint: '이름, 생산자, 국가 검색', value: 'Riesling');
     expect(find.textContaining('Left Bank Blend'), findsNothing);
     expect(find.textContaining('Riesling Trocken'), findsOneWidget);
@@ -283,77 +282,4 @@ void main() {
     expect(entry.purchases, isEmpty);
     await disposeApp(tester, store);
   });
-}
-
-Future<MiruvorStore> pumpApp(WidgetTester tester) async {
-  final store = MiruvorStore(database: AppDatabase.inMemory());
-  await tester.pumpWidget(MiruvorApp(store: store));
-  await tester.pumpAndSettle();
-  return store;
-}
-
-Future<void> reveal(WidgetTester tester, Finder finder) async {
-  if (finder.evaluate().isEmpty) {
-    await tester.drag(pageScroll(), const Offset(0, 3000));
-    await tester.pumpAndSettle();
-  }
-  for (var i = 0; i < 20 && finder.evaluate().isEmpty; i++) {
-    await tester.drag(pageScroll(), const Offset(0, -240));
-    await tester.pumpAndSettle();
-  }
-  expect(finder, findsOneWidget);
-  await tester.ensureVisible(finder);
-  await tester.pumpAndSettle();
-}
-
-Future<void> tap(WidgetTester tester, Finder finder) async {
-  await reveal(tester, finder);
-  await tester.tap(finder);
-  await tester.pumpAndSettle();
-}
-
-// Multiline text fields have their own Scrollable; move the form, not its text.
-Finder pageScroll() => find
-    .byWidgetPredicate(
-        (widget) => widget is Scrollable && widget.restorationId != 'editable')
-    .last;
-Future<void> enter(WidgetTester tester, String label, String value) async {
-  final finder = find.widgetWithText(TextFormField, label);
-  await reveal(tester, finder);
-  await tester.enterText(finder, value);
-  await tester.pumpAndSettle();
-}
-
-Future<void> enterFilter(WidgetTester tester,
-    {String? hint, String? label, required String value}) async {
-  final finder = find.byWidgetPredicate((w) =>
-      w is TextField &&
-      w.decoration?.hintText == hint &&
-      w.decoration?.labelText == label);
-  await reveal(tester, finder);
-  await tester.enterText(finder, value);
-  await tester.pumpAndSettle();
-}
-
-Future<void> openDetail(WidgetTester tester, String name) async {
-  await tap(tester, find.text('Cellar'));
-  await tap(tester, find.textContaining(name));
-}
-
-Future<void> pickDate(WidgetTester tester, String label, String day) async {
-  await reveal(tester, find.text(label));
-  await tester.tap(find
-      .ancestor(of: find.text(label), matching: find.byType(InkWell))
-      .first);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(day).last);
-  await tester.tap(find.text('OK'));
-  await tester.pumpAndSettle();
-}
-
-Future<void> disposeApp(WidgetTester tester, MiruvorStore store) async {
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pumpAndSettle();
-  await store.close();
-  store.dispose();
 }
